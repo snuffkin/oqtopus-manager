@@ -1,6 +1,6 @@
 cff-version: 1.2.0
 message: "If you use this software, please cite it as below."
-title: "Python Project Template"
+title: "OQTOPUS Manager"
 authors:
   - name: "OQTOPUS Team"
 version: 1.0.0
@@ -9,5 +9,5 @@ license: Apache-2.0
 contact:
   - email: oqtopus-team@googlegroups.com
     name: "OQTOPUS mailing list"
-repository-code: "https://github.com/oqtopus-team/python-project-template"
-url: "https://oqtopus-python-project-template.readthedocs.io/"
+repository-code: "https://github.com/oqtopus-team/oqtopus-manager"
+url: "https://oqtopus-manager.readthedocs.io/"

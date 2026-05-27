@@ -1,6 +1,6 @@
 [project]
-name = "python-project-template"
-version = "1.0.1"
+name = "oqtopus-manager"
+version = "1.0.0"
 description = "Template repository for building Python projects in the OQTOPUS ecosystem"
 readme = "README.md"
 license = "Apache-2.0"
@@ -24,8 +24,8 @@ dependencies = [
 ]
 
 [project.urls]
-documentation = "https://xxx.readthedocs.io/"
-repository = "https://github.com/oqtopus-team/python-project-template"
+documentation = "https://oqtopus-manager.readthedocs.io/"
+repository = "https://github.com/oqtopus-team/oqtopus-manager"
 
 [dependency-groups]
 dev = [
