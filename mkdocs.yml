@@ -1,5 +1,5 @@
-site_name: "Python Project Template"
-site_description: "Template repository for building Python projects in OQTOPUS ecosystem"
+site_name: "OQTOPUS Manager"
+site_description: "Local/on-prem management application for OQTOPUS backend environments"
 repo_name: OQTOPUS Manager
 repo_url: "https://github.com/oqtopus-team/oqtopus-manager"
 

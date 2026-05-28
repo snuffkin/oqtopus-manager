@@ -20,7 +20,7 @@ handlers:
     backupCount: 9
     encoding: utf-8
 loggers:
-  python_project_template:
+  oqtopus_manager:
     level: DEBUG
     handlers: [console, file]
     propagate: False

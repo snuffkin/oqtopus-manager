@@ -1,0 +1,11 @@
+default_environment_base_path: ./environments
+environments_file: ./config/environments.yaml
+
+address: 127.0.0.1:8000
+
+log_tail_lines: 100
+log_buffer_lines: 1000
+
+app_name: OQTOPUS Manager
+app_icon_path: ./assets/favicon.svg
+favicon_path: ./assets/favicon.svg

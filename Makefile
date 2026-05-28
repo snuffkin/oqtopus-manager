@@ -11,7 +11,7 @@ install: ## Install dependencies and configure git hooks and commit template
 	fi
 
 run: ## Run the application
-	@uv run python -m oqtopus_manager.app -c config/config.yaml -l config/logging.yaml
+	@uv run python -m oqtopus_manager.main -c config/config.yaml -l config/logging.yaml
 
 format: ## Run code formatting
 	@uv run ruff check --fix
