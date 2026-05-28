@@ -33,10 +33,10 @@ repository = "https://github.com/oqtopus-team/oqtopus-manager"
 
 [dependency-groups]
 dev = [
-  "mypy>=1.20.2",
+  "mypy>=2.1.0",
   "pre-commit>=4.6.0",
-  "ruff>=0.15.11",
-  "types-pyyaml>=6.0.12.20260408",
+  "ruff>=0.15.13",
+  "types-pyyaml>=6.0.12.20260518",
 ]
 test = [
   "httpx>=0.28.1",
@@ -53,8 +53,8 @@ docs = [
   "mkdocs-macros-plugin>=1.5.0",
   "mkdocs-material>=9.7.6",
   "mkdocstrings[python]>=1.0.4",
-  "pymarkdownlnt>=0.9.36",
-  "pymdown-extensions>=10.21.2",
+  "pymarkdownlnt>=0.9.37",
+  "pymdown-extensions>=10.21.3",
 ]
 
 [build-system]
