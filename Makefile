@@ -4,11 +4,12 @@ SHELL := bash
 
 .PHONY: install run format lint test verify docs-lint docs-build docs-serve help
 
-install: ## Install dependencies and configure git hooks and commit template
+install: ## Install dependencies, commit template and OQtopus CLI
 	@uv sync --all-groups
 	@if [ -d .git ]; then \
 		git config --local commit.template .gitmessage; \
 	fi
+	@curl -LsSf https://raw.githubusercontent.com/oqtopus-team/oqtopus-cli/main/scripts/install.sh | sh
 
 run: ## Run the application
 	@uv run python -m oqtopus_manager.main -c config/config.yaml -l config/logging.yaml

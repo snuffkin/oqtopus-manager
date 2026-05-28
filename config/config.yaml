@@ -9,3 +9,5 @@ log_buffer_lines: 1000
 app_name: OQTOPUS Manager
 app_icon_path: ./assets/favicon.svg
 favicon_path: ./assets/favicon.svg
+
+file_edit_lock_timeout_sec: 600

@@ -20,6 +20,7 @@ class AppConfig(BaseModel):
     app_name: str = "OQTOPUS Manager"
     app_icon_path: pathlib.Path | None = None
     favicon_path: pathlib.Path | None = None
+    file_edit_lock_timeout_sec: int = 600
 
     @property
     def host(self) -> str:
@@ -64,6 +65,7 @@ class AppConfig(BaseModel):
                 if raw.get("favicon_path")
                 else None
             ),
+            file_edit_lock_timeout_sec=raw.get("file_edit_lock_timeout_sec", 600),
         )
 
     def load_environments(self) -> list[Environment]:

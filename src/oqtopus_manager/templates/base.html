@@ -12,8 +12,9 @@
   <script src="https://unpkg.com/htmx.org@2.0.4"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; }
-    html { font-size: 14px; }
+    html { font-size: 18px; }
     body { font-family: 'Inter', sans-serif; }
+    .hljs-comment { font-style: italic; }
 
     /* Sidebar / main-area transitions */
     #sidebar   { transition: width 0.25s ease; }
@@ -224,7 +225,7 @@
   <!-- Main area (offset for fixed header + sidebar) -->
   <div id="main-area" class="ml-56 mt-14 flex flex-col min-h-[calc(100vh-3.5rem)]">
     {% block page_banner %}{% endblock %}
-    <main class="flex-1 p-8">
+    <main class="flex-1 p-5">
       {% block content %}{% endblock %}
     </main>
   </div>

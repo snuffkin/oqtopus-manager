@@ -2,12 +2,15 @@
 
 import pathlib
 import shutil
+import time
+import uuid
+from datetime import datetime
 
 import yaml
 from fastapi import APIRouter, Form, HTTPException, Request
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, StreamingResponse
 from fastapi.templating import Jinja2Templates
-from pydantic import ValidationError
+from pydantic import BaseModel, ValidationError
 
 from oqtopus_manager.cli import stream_log_tail, stream_oqtopus_init
 from oqtopus_manager.config import AppConfig
@@ -253,6 +256,111 @@ async def service_log_download(request: Request, name: str, service: str) -> Fil
     )
 
 
+class _UnlockBody(BaseModel):
+    token: str
+
+
+class _SaveBody(BaseModel):
+    token: str
+    content: str
+
+
+def _check_lock(lock_path: pathlib.Path, timeout: int) -> tuple[bool, str | None, str | None, float | None]:
+    """Return (is_locked, token_if_locked, locked_since_str, locked_since_ts).
+
+    Removes stale lock files automatically.
+    """
+    if not lock_path.exists():
+        return False, None, None, None
+    try:
+        parts = lock_path.read_text(encoding="utf-8").strip().split("\n", 1)
+        token = parts[0]
+        ts = float(parts[1]) if len(parts) > 1 else 0.0
+        if time.time() - ts < timeout:
+            locked_since = datetime.fromtimestamp(ts).strftime("%Y-%m-%d %H:%M:%S")
+            return True, token, locked_since, ts
+        lock_path.unlink(missing_ok=True)
+    except Exception:
+        lock_path.unlink(missing_ok=True)
+    return False, None, None, None
+
+
+@router.post("/{name}/dotenv/force-unlock")
+async def force_unlock_dotenv(request: Request, name: str) -> JSONResponse:
+    cfg = _get_config(request)
+    environments = cfg.load_environments()
+    env = next((e for e in environments if e.name == name), None)
+    if env is None:
+        raise HTTPException(status_code=404, detail=f"Environment '{name}' not found.")
+    resolved = env.resolved_root_path(cfg.default_environment_base_path)
+    lock_path = resolved / "config" / ".env.lock"
+    lock_path.unlink(missing_ok=True)
+    return JSONResponse({"ok": True})
+
+
+@router.post("/{name}/dotenv/lock")
+async def acquire_dotenv_lock(request: Request, name: str) -> JSONResponse:
+    cfg = _get_config(request)
+    environments = cfg.load_environments()
+    env = next((e for e in environments if e.name == name), None)
+    if env is None:
+        raise HTTPException(status_code=404, detail=f"Environment '{name}' not found.")
+    resolved = env.resolved_root_path(cfg.default_environment_base_path)
+    lock_path = resolved / "config" / ".env.lock"
+
+    is_locked, _, locked_since, locked_since_ts = _check_lock(lock_path, cfg.file_edit_lock_timeout_sec)
+    if is_locked:
+        return JSONResponse({"ok": False, "locked_since": locked_since, "locked_since_ts": locked_since_ts}, status_code=409)
+
+    ts = time.time()
+    token = str(uuid.uuid4())
+    lock_path.write_text(f"{token}\n{ts}", encoding="utf-8")
+    return JSONResponse({"ok": True, "token": token, "acquired_ts": ts})
+
+
+@router.post("/{name}/dotenv/unlock")
+async def release_dotenv_lock(request: Request, name: str, body: _UnlockBody) -> JSONResponse:
+    cfg = _get_config(request)
+    environments = cfg.load_environments()
+    env = next((e for e in environments if e.name == name), None)
+    if env is None:
+        raise HTTPException(status_code=404, detail=f"Environment '{name}' not found.")
+    resolved = env.resolved_root_path(cfg.default_environment_base_path)
+    lock_path = resolved / "config" / ".env.lock"
+
+    is_locked, token, _, __ = _check_lock(lock_path, cfg.file_edit_lock_timeout_sec)
+    if is_locked and token == body.token:
+        lock_path.unlink(missing_ok=True)
+        return JSONResponse({"ok": True})
+    return JSONResponse({"ok": False, "error": "Lock not held or token mismatch."}, status_code=403)
+
+
+@router.post("/{name}/dotenv/save")
+async def save_dotenv(request: Request, name: str, body: _SaveBody) -> JSONResponse:
+    cfg = _get_config(request)
+    environments = cfg.load_environments()
+    env = next((e for e in environments if e.name == name), None)
+    if env is None:
+        raise HTTPException(status_code=404, detail=f"Environment '{name}' not found.")
+    resolved = env.resolved_root_path(cfg.default_environment_base_path)
+    lock_path = resolved / "config" / ".env.lock"
+    dotenv_path = resolved / "config" / ".env"
+
+    is_locked, token, _, __ = _check_lock(lock_path, cfg.file_edit_lock_timeout_sec)
+    if not is_locked:
+        return JSONResponse({"ok": False, "error": "Lock expired."}, status_code=409)
+    if token != body.token:
+        return JSONResponse({"ok": False, "error": "Invalid token."}, status_code=403)
+
+    if dotenv_path.exists():
+        backup_ts = datetime.now().strftime("%Y%m%d%H%M%S")
+        shutil.copy2(dotenv_path, dotenv_path.parent / f".env.{backup_ts}")
+
+    dotenv_path.write_text(body.content, encoding="utf-8")
+    lock_path.unlink(missing_ok=True)
+    return JSONResponse({"ok": True})
+
+
 @router.get("/{name}/dotenv/download")
 async def environment_dotenv_download(request: Request, name: str) -> FileResponse:
     cfg = _get_config(request)
@@ -275,9 +383,12 @@ async def environment_dotenv(request: Request, name: str) -> HTMLResponse:
         raise HTTPException(status_code=404, detail=f"Environment '{name}' not found.")
     resolved = env.resolved_root_path(cfg.default_environment_base_path)
     dotenv_path = resolved / "config" / ".env"
+    lock_path = resolved / "config" / ".env.lock"
 
     def _read(path: pathlib.Path) -> str | None:
         return path.read_text(encoding="utf-8") if path.exists() else None
+
+    is_locked, _, locked_since, locked_since_ts = _check_lock(lock_path, cfg.file_edit_lock_timeout_sec)
 
     return _get_templates(request).TemplateResponse(
         request,
@@ -286,6 +397,10 @@ async def environment_dotenv(request: Request, name: str) -> HTMLResponse:
             "env": env,
             "dotenv_path": dotenv_path,
             "dotenv_content": _read(dotenv_path),
+            "is_locked": is_locked,
+            "locked_since": locked_since,
+            "locked_since_ts": locked_since_ts,
+            "lock_timeout_sec": cfg.file_edit_lock_timeout_sec,
         },
     )
 
