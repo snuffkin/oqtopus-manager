@@ -81,9 +81,10 @@ if __name__ == "__main__":
     args = _parse_args()
 
     with pathlib.Path(args.logging).open(encoding="utf-8") as f:
-        logging.config.dictConfig(yaml.safe_load(f))
+        log_config_dict = yaml.safe_load(f)
+    logging.config.dictConfig(log_config_dict)
 
     cfg_path = pathlib.Path(args.config)
     app = create_app(cfg_path)
     cfg = app.state.config
-    uvicorn.run(app, host=cfg.host, port=cfg.port)
+    uvicorn.run(app, host=cfg.host, port=cfg.port, log_config=log_config_dict)

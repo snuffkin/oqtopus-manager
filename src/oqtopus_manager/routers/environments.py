@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import datetime
+import logging
 import pathlib
 import shutil
 import time
@@ -30,6 +31,7 @@ if TYPE_CHECKING:
     from oqtopus_manager.config import AppConfig
 
 router = APIRouter(prefix="/backend", tags=["backend"])
+logger = logging.getLogger(__name__)
 
 
 def _get_templates(request: Request) -> Jinja2Templates:
@@ -128,6 +130,7 @@ async def create_environment(
             status_code=422,
         )
 
+    logger.info("Environment '%s' validated (template=%s)", name, template)
     return JSONResponse({"ok": True})
 
 
@@ -170,6 +173,7 @@ async def stream_environment_init(
                 env_to_save = new_env.model_copy(update={"root_path": resolved})
                 environments.append(env_to_save)
                 cfg.save_environments(environments)
+                logger.info("Environment '%s' created and saved to config", name)
 
     return StreamingResponse(event_stream(), media_type="text/event-stream")
 
@@ -460,6 +464,7 @@ def _force_unlock_file(lock_path: pathlib.Path) -> JSONResponse:
 
     """
     lock_path.unlink(missing_ok=True)
+    logger.warning("Force-unlocked: %s", lock_path)
     return JSONResponse({"ok": True})
 
 
@@ -524,9 +529,12 @@ def _save_file(
         return JSONResponse({"ok": False, "error": "Invalid token."}, status_code=403)
     if file_path.exists():
         backup_ts = datetime.datetime.now(tz=datetime.UTC).strftime("%Y%m%d%H%M%S")
-        shutil.copy2(file_path, file_path.parent / f"{file_path.name}.{backup_ts}")
+        backup_path = file_path.parent / f"{file_path.name}.{backup_ts}"
+        shutil.copy2(file_path, backup_path)
+        logger.debug("Backup created: %s", backup_path)
     file_path.write_text(content, encoding="utf-8")
     lock_path.unlink(missing_ok=True)
+    logger.info("Saved: %s", file_path)
     return JSONResponse({"ok": True})
 
 
@@ -913,8 +921,10 @@ async def delete_environment(request: Request, name: str) -> HTMLResponse:
         raise HTTPException(status_code=404, detail=f"Environment '{name}' not found.")
 
     root_dir = target.resolved_root_path(cfg.default_environment_base_path)
+    logger.info("Deleting environment '%s' (root=%s)", name, root_dir)
     if root_dir.exists():
         shutil.rmtree(root_dir)
+        logger.info("Deleted directory: %s", root_dir)
 
     remaining = [e for e in environments if e.name != name]
     cfg.save_environments(remaining)

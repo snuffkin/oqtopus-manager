@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import re
 from typing import TYPE_CHECKING
 
@@ -16,6 +17,7 @@ if TYPE_CHECKING:
     from oqtopus_manager.config import AppConfig
 
 router = APIRouter(prefix="/backend", tags=["backend"])
+logger = logging.getLogger(__name__)
 
 _VALID_SERVICES = frozenset({
     "all",
@@ -177,6 +179,7 @@ async def backend_stream(  # noqa: PLR0913, PLR0917
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     cwd = env.resolved_root_path(cfg.default_environment_base_path)
+    logger.info("Backend stream: cmd=%s args=%s env=%s", cmd, backend_args, name)
 
     async def event_stream() -> AsyncGenerator[str]:
         async for chunk in stream_oqtopus_backend(backend_args, cwd):
