@@ -20,27 +20,30 @@ Example:
 
 ### 1. Backend routes (follow CLAUDE.md "File-Edit Pattern")
 
-Add these 4 routes to the appropriate router, modelled on `force_unlock_service_config` / `acquire_service_config_lock` / `release_service_config_lock` / `save_service_config` in `environments.py`.
+Add these 4 thin route handlers to the appropriate router. Each handler calls the shared helpers from `environments.py` (see CLAUDE.md "Shared Helpers"):
 
 ```
-POST <url-prefix>/<which-key>/force-unlock
-POST <url-prefix>/<which-key>/lock
-POST <url-prefix>/<which-key>/unlock
-POST <url-prefix>/<which-key>/save
+POST <url-prefix>/<which-key>/force-unlock  → _force_unlock_file(lock_path)
+POST <url-prefix>/<which-key>/lock          → _acquire_file_lock(lock_path, timeout)
+POST <url-prefix>/<which-key>/unlock        → _release_file_lock(lock_path, token, timeout)
+POST <url-prefix>/<which-key>/save          → _save_file(file_path, lock_path, content, token, timeout)
 ```
 
 - Lock file: `{filename}.lock` alongside the target file
-- Backup naming: `{filename}.{yyyymmddhhmmss}`
-- Lock format: `{uuid}\n{unix_timestamp}`
-- Use `_check_lock()` helper (already defined in environments.py)
-- `lock` returns `{ok, token, acquired_ts}` or 409
-- `save` validates token, backs up, writes, releases lock
+- `token` comes from the request body (Form field)
+- `timeout` comes from `cfg.file_edit_lock_timeout_sec`
+
+Do NOT re-implement lock/save logic inline — use the shared helpers.
 
 ### 2. Template editor section (follow CLAUDE.md "File-Edit Pattern")
 
-Add a `<details>` section to `<template-file>` modelled on the existing editors in `service_config.html`.
+Add a `<details>` editor to `<template-file>`:
 
-Use `makeEditor(opts)` factory if the page already has other editors; otherwise inline functions are fine (see `dotenv.html`).
+- If `<template-file>` is **`service_config.html`** (or another page that already uses the `editor_section` macro): add a `{{ editor_section(...) }}` call — do NOT copy HTML blocks.
+- If the page has **multiple editors but no macro yet**: add the `editor_section` macro first, then call it.
+- If the page has **a single editor** (e.g. `dotenv.html`): inline functions are fine.
+
+Use `makeEditor(opts)` factory for JS if the page already has other editors; otherwise inline functions are fine (see `dotenv.html`).
 
 Prefix all DOM IDs with a short unique prefix derived from `<which-key>` (e.g. `extra-view`, `extra-edit`, `extra-edit-btn`).
 

@@ -45,7 +45,11 @@ All toolbar/summary-row buttons follow these rules — do not invent new variant
 
 ## File-Edit Pattern
 
-Every editable file uses the same lock/edit/diff/save flow. The canonical reference implementation is **`dotenv.html`** + the dotenv routes in **`environments.py`**.
+Every editable file uses the same lock/edit/diff/save flow.
+
+- **JS pattern reference**: `dotenv.html` (inline functions for single editor; `makeEditor()` factory for multi-editor)
+- **Python route reference**: dotenv routes in `environments.py` — thin wrappers that call the shared helpers in the "Shared Helpers" section above
+- **Jinja2 template reference for multi-editor pages**: `service_config.html` uses the `editor_section` macro; add new editors via a macro call, not by copying HTML blocks
 
 ### Lock state rules (always enforce)
 
@@ -103,6 +107,24 @@ Use the `makeEditor(opts)` factory (see `service_config.html`) when a page has m
 
 ---
 
+## Shared Helpers (`routers/environments.py`)
+
+Use these helpers when implementing new routes — do not re-implement inline:
+
+| Helper | Purpose |
+|---|---|
+| `_get_environment_or_404(name, cfg)` | Load environment by name or raise 404 |
+| `_force_unlock_file(lock_path)` | Remove lock file unconditionally → `JSONResponse` |
+| `_acquire_file_lock(lock_path, timeout)` | Acquire lock → `{ok, token, acquired_ts}` or 409 |
+| `_release_file_lock(lock_path, token, timeout)` | Release lock (token required) → `{ok}` or 403 |
+| `_save_file(file_path, lock_path, content, token, timeout)` | Validate token, backup, write, release → `{ok}` or 4xx |
+| `_read_path_from_yaml(yaml_file, keys, env_root)` | Safely traverse nested YAML keys → `Path \| None` |
+| `_check_lock(lock_path, timeout)` | Read lock file state → `(is_locked, token, locked_since, locked_since_ts)` |
+
+Route handlers for the file-edit pattern are thin wrappers that call the shared helpers above.
+
+---
+
 ## Naming
 
 - Lock/edit route handlers: `force_unlock_*`, `acquire_*_lock`, `release_*_lock`, `save_*`
@@ -112,24 +134,29 @@ Use the `makeEditor(opts)` factory (see `service_config.html`) when a page has m
 
 ## Route → Template Map
 
+Each template type has its own URL prefix. Routes within a template group are in the corresponding router file.
+
+### `/backend` — Backend template
+
 | URL | Template |
 |---|---|
-| `GET /environments` | `environments/list.html` |
-| `GET /environments/new` | `environments/new.html` |
-| `GET /environments/{name}` (default) | `environments/detail.html` |
-| `GET /environments/{name}` (template=backend) | `environments/backend_detail.html` |
-| `GET /environments/{name}/dotenv` | `environments/dotenv.html` |
-| `GET /environments/{name}/services/{service}/config` | `environments/service_config.html` |
-| `GET /environments/{name}/services/{service}/log` | `environments/service_log.html` |
+| `GET /backend` | `environments/list.html` (filtered to `template=backend`) |
+| `GET /backend/new` | `environments/new.html` |
+| `GET /backend/{name}` | `environments/backend_detail.html` |
+| `GET /backend/{name}/dotenv` | `environments/dotenv.html` |
+| `GET /backend/{name}/services/{service}/config` | `environments/service_config.html` |
+| `GET /backend/{name}/services/{service}/log` | `environments/service_log.html` |
+| `GET /backend/{name}/stream?cmd=...` | SSE stream (backend commands) |
+| `GET /backend/{name}/component-versions?component=...` | JSON version list |
 | `GET /settings` | `app_settings.html` |
 | `GET /browse` | `browse/_picker.html` |
 
 ### Template Implementation Status
 
-| `template` value | Detail template | Status |
-|---|---|---|
-| `backend` | `environments/backend_detail.html` | Implemented |
-| (others) | `environments/detail.html` | Stub — shows name/template/root only |
+| `template` value | URL prefix | Detail template | Status |
+|---|---|---|---|
+| `backend` | `/backend` | `environments/backend_detail.html` | Implemented |
+| (future) | `/cloud-local` etc. | TBD | Not yet |
 
 To add a new template type, use `/new-template <name>`.
 
@@ -139,12 +166,12 @@ To add a new template type, use `/new-template <name>`.
 
 | File | URL prefix | Purpose |
 |---|---|---|
-| `routers/environments.py` | `/environments` | Environment CRUD, dotenv, service config/log, lock routes |
-| `routers/backend.py` | `/environments` | SSE backend commands, component versions JSON |
+| `routers/environments.py` | `/backend` | Environment CRUD, dotenv, service config/log, lock routes (backend template) |
+| `routers/backend.py` | `/backend` | SSE backend commands, component versions JSON |
 | `routers/app_settings.py` | `/settings` | App settings page |
 | `routers/browse.py` | `/browse` | File/directory browser |
 
-Template dispatch: `_DETAIL_TEMPLATE` dict in `environments.py` maps `env.template` → template path. `get_environment` route builds template-specific context in `if env.template == "..."` blocks.
+Each template type gets its own router pair (environments + backend equivalent). The `list_environments` route filters by `template` value so each prefix only shows its own environments.
 
 ---
 

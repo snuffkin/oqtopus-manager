@@ -15,7 +15,7 @@ if TYPE_CHECKING:
 
     from oqtopus_manager.config import AppConfig
 
-router = APIRouter(prefix="/environments", tags=["backend"])
+router = APIRouter(prefix="/backend", tags=["backend"])
 
 _VALID_SERVICES = frozenset({
     "all",
@@ -107,7 +107,7 @@ def _build_args(  # noqa: C901, PLR0911, PLR0912, PLR0913, PLR0917
     raise ValueError(msg)
 
 
-@router.get("/{name}/backend/component-versions")
+@router.get("/{name}/component-versions")
 async def component_versions_list(
     request: Request,
     name: str,
@@ -142,7 +142,7 @@ async def component_versions_list(
     return JSONResponse({"versions": versions})
 
 
-@router.get("/{name}/backend/stream")
+@router.get("/{name}/stream")
 async def backend_stream(  # noqa: PLR0913, PLR0917
     request: Request,
     name: str,

@@ -46,7 +46,7 @@ def create_app(config_path: pathlib.Path) -> FastAPI:
 
     @app.get("/")
     async def root() -> RedirectResponse:
-        return RedirectResponse(url="/environments")
+        return RedirectResponse(url="/backend")
 
     @app.get("/app-icon")
     async def app_icon_file() -> FileResponse:

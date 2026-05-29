@@ -55,6 +55,7 @@ async def settings_page(request: Request) -> HTMLResponse:
         )
 
     logging_path = cfg.config_path.parent / "logging.yaml"
+    environments_path = cfg.environments_file
     oqtopus_path = shutil.which("oqtopus") or "not found"
     raw_version = await _run_quick(["oqtopus", "version"])
     oqtopus_version = raw_version.removeprefix("oqtopus ").strip()
@@ -67,6 +68,8 @@ async def settings_page(request: Request) -> HTMLResponse:
             "config_content": _read(cfg.config_path),
             "logging_path": logging_path,
             "logging_content": _read(logging_path),
+            "environments_path": environments_path,
+            "environments_content": _read(environments_path),
             "oqtopus_path": oqtopus_path,
             "oqtopus_version": oqtopus_version,
         },

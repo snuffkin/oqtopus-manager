@@ -52,72 +52,72 @@ def mock_stream_failure(mocker: MockerFixture) -> None:
     mocker.patch("oqtopus_manager.routers.environments.stream_oqtopus_init", side_effect=_gen)
 
 
-def test_root_redirects_to_environments(client: TestClient) -> None:
+def test_root_redirects_to_backend(client: TestClient) -> None:
     response = client.get("/", follow_redirects=False)
     assert response.status_code == 307
-    assert response.headers["location"] == "/environments"
+    assert response.headers["location"] == "/backend"
 
 
 def test_list_environments_empty(client: TestClient) -> None:
-    response = client.get("/environments")
+    response = client.get("/backend")
     assert response.status_code == 200
 
 
 def test_create_environment_returns_ok(client: TestClient) -> None:
-    response = client.post("/environments", data={"name": "demo", "template": "backend", "root_path": ""})
+    response = client.post("/backend", data={"name": "demo", "template": "backend", "root_path": ""})
     assert response.status_code == 200
     assert response.json() == {"ok": True}
 
 
 def test_create_environment_invalid_name_returns_422(client: TestClient) -> None:
-    response = client.post("/environments", data={"name": "MyEnv", "template": "backend", "root_path": ""})
+    response = client.post("/backend", data={"name": "MyEnv", "template": "backend", "root_path": ""})
     assert response.status_code == 422
     assert response.json()["ok"] is False
     assert "error" in response.json()
 
 
 def test_create_duplicate_environment_returns_409(client: TestClient, mock_stream_success: None) -> None:
-    client.get("/environments/stream?name=demo&template=backend")
-    response = client.post("/environments", data={"name": "demo", "template": "backend", "root_path": ""})
+    client.get("/backend/stream?name=demo&template=backend")
+    response = client.post("/backend", data={"name": "demo", "template": "backend", "root_path": ""})
     assert response.status_code == 409
     assert response.json()["ok"] is False
     assert "already exists" in response.json()["error"]
 
 
 def test_stream_success_saves_environment(client: TestClient, mock_stream_success: None) -> None:
-    response = client.get("/environments/stream?name=demo&template=backend")
+    response = client.get("/backend/stream?name=demo&template=backend")
     assert response.status_code == 200
     assert b"event: done" in response.content
     assert b"success" in response.content
-    list_response = client.get("/environments")
+    list_response = client.get("/backend")
     assert b"demo" in list_response.content
 
 
 def test_stream_failure_does_not_save_environment(client: TestClient, mock_stream_failure: None) -> None:
-    client.get("/environments/stream?name=demo&template=backend")
-    list_response = client.get("/environments")
+    client.get("/backend/stream?name=demo&template=backend")
+    list_response = client.get("/backend")
     assert b"demo" not in list_response.content
 
 
 def test_get_environment_detail(client: TestClient, mock_stream_success: None) -> None:
-    client.get("/environments/stream?name=demo&template=backend")
-    response = client.get("/environments/demo")
+    client.get("/backend/stream?name=demo&template=backend")
+    response = client.get("/backend/demo")
     assert response.status_code == 200
     assert b"demo" in response.content
 
 
 def test_get_nonexistent_environment_returns_404(client: TestClient) -> None:
-    response = client.get("/environments/nonexistent")
+    response = client.get("/backend/nonexistent")
     assert response.status_code == 404
 
 
 def test_delete_environment(
     client: TestClient, mock_stream_success: None, tmp_path: pathlib.Path
 ) -> None:
-    client.get("/environments/stream?name=myenv&template=backend")
+    client.get("/backend/stream?name=myenv&template=backend")
     env_dir = tmp_path / "environments" / "myenv"
     env_dir.mkdir(parents=True, exist_ok=True)
-    response = client.request("DELETE", "/environments/myenv")
+    response = client.request("DELETE", "/backend/myenv")
     assert response.status_code == 200
     assert b"myenv" not in response.content
     assert not env_dir.exists()
@@ -127,16 +127,16 @@ def test_delete_environment_without_directory(
     client: TestClient, mock_stream_success: None
 ) -> None:
     """Delete should succeed even if the directory is already gone."""
-    client.get("/environments/stream?name=myenv&template=backend")
-    response = client.request("DELETE", "/environments/myenv")
+    client.get("/backend/stream?name=myenv&template=backend")
+    response = client.request("DELETE", "/backend/myenv")
     assert response.status_code == 200
 
 
 def test_delete_nonexistent_environment_returns_404(client: TestClient) -> None:
-    response = client.request("DELETE", "/environments/nonexistent")
+    response = client.request("DELETE", "/backend/nonexistent")
     assert response.status_code == 404
 
 
 def test_new_environment_form(client: TestClient) -> None:
-    response = client.get("/environments/new")
+    response = client.get("/backend/new")
     assert response.status_code == 200

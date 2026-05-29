@@ -184,11 +184,11 @@
   <!-- Sidebar (fixed, starts below header) -->
   <aside id="sidebar" class="w-56 bg-white border-r border-gray-200 flex flex-col fixed top-14 left-0 bottom-0 z-10 overflow-hidden shadow-sm">
     <nav class="flex-1 px-2 pt-16 pb-2 space-y-0.5 overflow-y-auto">
-      <p class="nav-section-label px-2.5 pb-1.5 text-xs font-semibold text-gray-400 uppercase tracking-wider">Manage</p>
+      <p class="nav-section-label px-2.5 pb-1.5 text-xs font-semibold text-gray-400 uppercase tracking-wider">Environments</p>
 
-      <a href="/environments" title="Environments"
+      <a href="/backend" title="Backend"
          class="flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm font-medium transition-colors duration-150
-                {% if request.url.path == '/environments' or request.url.path.startswith('/environments/') %}
+                {% if request.url.path == '/backend' or request.url.path.startswith('/backend/') %}
                 bg-[#EFF4FF] text-[#4887FA]
                 {% else %}
                 text-gray-600 hover:bg-gray-50 hover:text-gray-900
@@ -199,21 +199,7 @@
           <line x1="6" y1="6" x2="6.01" y2="6"/>
           <line x1="6" y1="18" x2="6.01" y2="18"/>
         </svg>
-        <span class="sidebar-label">Environments</span>
-      </a>
-
-      <a href="/api-docs" title="API Docs"
-         class="flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm font-medium transition-colors duration-150
-                {% if request.url.path == '/api-docs' %}
-                bg-[#EFF4FF] text-[#4887FA]
-                {% else %}
-                text-gray-600 hover:bg-gray-50 hover:text-gray-900
-                {% endif %}">
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <polyline points="16 18 22 12 16 6"/>
-          <polyline points="8 6 2 12 8 18"/>
-        </svg>
-        <span class="sidebar-label">API Docs</span>
+        <span class="sidebar-label">Backend</span>
       </a>
 
       {% if sidebar_links %}
@@ -232,6 +218,20 @@
       {% endif %}
 
       <p class="nav-section-label px-2.5 pb-1.5 pt-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">System</p>
+
+      <a href="/api-docs" title="API Docs"
+         class="flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm font-medium transition-colors duration-150
+                {% if request.url.path == '/api-docs' %}
+                bg-[#EFF4FF] text-[#4887FA]
+                {% else %}
+                text-gray-600 hover:bg-gray-50 hover:text-gray-900
+                {% endif %}">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="16 18 22 12 16 6"/>
+          <polyline points="8 6 2 12 8 18"/>
+        </svg>
+        <span class="sidebar-label">API Docs</span>
+      </a>
 
       <a href="/settings" title="Settings"
          class="flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm font-medium transition-colors duration-150

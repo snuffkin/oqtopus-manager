@@ -29,7 +29,7 @@ if TYPE_CHECKING:
 
     from oqtopus_manager.config import AppConfig
 
-router = APIRouter(prefix="/environments", tags=["environments"])
+router = APIRouter(prefix="/backend", tags=["backend"])
 
 
 def _get_templates(request: Request) -> Jinja2Templates:
@@ -38,6 +38,22 @@ def _get_templates(request: Request) -> Jinja2Templates:
 
 def _get_config(request: Request) -> AppConfig:
     return request.app.state.config
+
+
+def _get_environment_or_404(name: str, cfg: AppConfig) -> Environment:
+    """Return the named environment, raising 404 if not found.
+
+    Returns:
+        The matching Environment.
+
+    Raises:
+        HTTPException: If the environment is not found.
+
+    """
+    env = next((e for e in cfg.load_environments() if e.name == name), None)
+    if env is None:
+        raise HTTPException(status_code=404, detail=f"Environment '{name}' not found.")
+    return env
 
 
 @router.get("", response_class=HTMLResponse)
@@ -49,11 +65,12 @@ async def list_environments(request: Request) -> HTMLResponse:
 
     """
     cfg = _get_config(request)
-    environments = cfg.load_environments()
+    all_envs = cfg.load_environments()
+    environments = [e for e in all_envs if e.template == "backend"]
     return _get_templates(request).TemplateResponse(
         request,
         "environments/list.html",
-        {"environments": environments, "base_path": cfg.default_environment_base_path},
+        _build_list_context(environments, cfg),
     )
 
 
@@ -157,11 +174,6 @@ async def stream_environment_init(
     return StreamingResponse(event_stream(), media_type="text/event-stream")
 
 
-_DETAIL_TEMPLATE: dict[str, str] = {
-    "backend": "environments/backend_detail.html",
-}
-
-
 def _read_metadata(env_root: pathlib.Path) -> dict[str, str]:
     """Parse <env_root>/.metadata (key=value lines) into a dict.
 
@@ -178,6 +190,26 @@ def _read_metadata(env_root: pathlib.Path) -> dict[str, str]:
             key, _, value = line.partition("=")
             result[key.strip()] = value.strip()
     return result
+
+
+def _build_list_context(environments: list[Environment], cfg: AppConfig) -> dict:
+    """Build template context for the backend list page.
+
+    Returns:
+        Dict with env_items (list of dicts with env and all_installed) and base_path.
+
+    """
+    env_items = []
+    for env in environments:
+        resolved = env.resolved_root_path(cfg.default_environment_base_path)
+        meta = _read_metadata(resolved)
+        all_installed = bool(
+            meta.get("engine_version")
+            and meta.get("tranqu_version")
+            and meta.get("gateway_version")
+        )
+        env_items.append({"env": env, "all_installed": all_installed})
+    return {"env_items": env_items, "base_path": cfg.default_environment_base_path}
 
 
 def _components_installed(install_root: str) -> bool:
@@ -198,15 +230,9 @@ async def get_settings_partial(request: Request, name: str) -> HTMLResponse:
     Returns:
         HTMLResponse with the settings partial template.
 
-    Raises:
-        HTTPException: If the environment is not found.
-
     """
     cfg = _get_config(request)
-    environments = cfg.load_environments()
-    env = next((e for e in environments if e.name == name), None)
-    if env is None:
-        raise HTTPException(status_code=404, detail=f"Environment '{name}' not found.")
+    env = _get_environment_or_404(name, cfg)
     resolved = env.resolved_root_path(cfg.default_environment_base_path)
     meta = _read_metadata(resolved)
     return _get_templates(request).TemplateResponse(
@@ -223,15 +249,9 @@ async def service_config(request: Request, name: str, service: str) -> HTMLRespo
     Returns:
         HTMLResponse with the service config editor.
 
-    Raises:
-        HTTPException: If the environment is not found.
-
     """
     cfg = _get_config(request)
-    environments = cfg.load_environments()
-    env = next((e for e in environments if e.name == name), None)
-    if env is None:
-        raise HTTPException(status_code=404, detail=f"Environment '{name}' not found.")
+    env = _get_environment_or_404(name, cfg)
     resolved = env.resolved_root_path(cfg.default_environment_base_path)
     config_dir = resolved / "config" / service
 
@@ -260,9 +280,36 @@ async def service_config(request: Request, name: str, service: str) -> HTMLRespo
             "logging_is_locked": logging_locked,
             "logging_locked_since": logging_locked_since,
             "logging_locked_since_ts": logging_locked_since_ts,
+            **_load_topology_context(service, resolved, cfg.file_edit_lock_timeout_sec),
             "lock_timeout_sec": cfg.file_edit_lock_timeout_sec,
         },
     )
+
+
+def _read_path_from_yaml(
+    yaml_file: pathlib.Path, keys: list[str], env_root: pathlib.Path
+) -> pathlib.Path | None:
+    """Read a file path from a YAML file by following a chain of keys.
+
+    Returns:
+        The resolved Path, or None if not found or on any parsing error.
+
+    """
+    if not yaml_file.exists():
+        return None
+    try:
+        data = yaml.safe_load(yaml_file.read_text(encoding="utf-8"))
+        value: object = data
+        for key in keys:
+            if not isinstance(value, dict):
+                return None
+            value = value.get(key)
+        if not value:
+            return None
+        path = pathlib.Path(str(value))
+        return path if path.is_absolute() else env_root / path
+    except KeyError, TypeError, AttributeError:
+        return None
 
 
 def _get_log_file(env_root: pathlib.Path, service: str) -> pathlib.Path | None:
@@ -272,16 +319,25 @@ def _get_log_file(env_root: pathlib.Path, service: str) -> pathlib.Path | None:
         The Path to the log file, or None if it cannot be determined.
 
     """
-    logging_yaml = env_root / "config" / service / "logging.yaml"
-    if not logging_yaml.exists():
-        return None
-    try:
-        data = yaml.safe_load(logging_yaml.read_text(encoding="utf-8"))
-        filename = data["handlers"]["file"]["filename"]
-        path = pathlib.Path(filename)
-        return path if path.is_absolute() else env_root / path
-    except KeyError, TypeError, AttributeError:
-        return None
+    return _read_path_from_yaml(
+        env_root / "config" / service / "logging.yaml",
+        ["handlers", "file", "filename"],
+        env_root,
+    )
+
+
+def _get_topology_json_path(env_root: pathlib.Path) -> pathlib.Path | None:
+    """Return device_topology_json_path from gateway config.yaml, or None.
+
+    Returns:
+        The resolved Path to the topology JSON file, or None if not configured.
+
+    """
+    return _read_path_from_yaml(
+        env_root / "config" / "gateway" / "config.yaml",
+        ["device_topology_json_path"],
+        env_root,
+    )
 
 
 @router.get("/{name}/services/{service}/log", response_class=HTMLResponse)
@@ -291,15 +347,9 @@ async def service_log(request: Request, name: str, service: str) -> HTMLResponse
     Returns:
         HTMLResponse with the log viewer page.
 
-    Raises:
-        HTTPException: If the environment is not found.
-
     """
     cfg = _get_config(request)
-    environments = cfg.load_environments()
-    env = next((e for e in environments if e.name == name), None)
-    if env is None:
-        raise HTTPException(status_code=404, detail=f"Environment '{name}' not found.")
+    env = _get_environment_or_404(name, cfg)
     resolved = env.resolved_root_path(cfg.default_environment_base_path)
     log_file = _get_log_file(resolved, service)
     return _get_templates(request).TemplateResponse(
@@ -324,14 +374,11 @@ async def service_log_stream(
         StreamingResponse with SSE-formatted log lines.
 
     Raises:
-        HTTPException: If the environment or log file is not found.
+        HTTPException: If the log file is not found.
 
     """
     cfg = _get_config(request)
-    environments = cfg.load_environments()
-    env = next((e for e in environments if e.name == name), None)
-    if env is None:
-        raise HTTPException(status_code=404, detail=f"Environment '{name}' not found.")
+    env = _get_environment_or_404(name, cfg)
     resolved = env.resolved_root_path(cfg.default_environment_base_path)
     log_file = _get_log_file(resolved, service)
     if log_file is None or not log_file.exists():
@@ -352,14 +399,11 @@ async def service_log_download(
         FileResponse with the log file content.
 
     Raises:
-        HTTPException: If the environment or log file is not found.
+        HTTPException: If the log file is not found.
 
     """
     cfg = _get_config(request)
-    environments = cfg.load_environments()
-    env = next((e for e in environments if e.name == name), None)
-    if env is None:
-        raise HTTPException(status_code=404, detail=f"Environment '{name}' not found.")
+    env = _get_environment_or_404(name, cfg)
     resolved = env.resolved_root_path(cfg.default_environment_base_path)
     log_file = _get_log_file(resolved, service)
     if log_file is None or not log_file.exists():
@@ -408,6 +452,84 @@ def _check_lock(
     return False, None, None, None
 
 
+def _force_unlock_file(lock_path: pathlib.Path) -> JSONResponse:
+    """Remove a lock file unconditionally.
+
+    Returns:
+        JSONResponse with ok=True.
+
+    """
+    lock_path.unlink(missing_ok=True)
+    return JSONResponse({"ok": True})
+
+
+def _acquire_file_lock(lock_path: pathlib.Path, timeout: int) -> JSONResponse:
+    """Acquire a lock on the given lock file path.
+
+    Returns:
+        JSONResponse with ok=True and token on success, or 409 if already locked.
+
+    """
+    is_locked, _, locked_since, locked_since_ts = _check_lock(lock_path, timeout)
+    if is_locked:
+        return JSONResponse(
+            {
+                "ok": False,
+                "locked_since": locked_since,
+                "locked_since_ts": locked_since_ts,
+            },
+            status_code=409,
+        )
+    ts = time.time()
+    token = str(uuid.uuid4())
+    lock_path.write_text(f"{token}\n{ts}", encoding="utf-8")
+    return JSONResponse({"ok": True, "token": token, "acquired_ts": ts})
+
+
+def _release_file_lock(
+    lock_path: pathlib.Path, token: str, timeout: int
+) -> JSONResponse:
+    """Release a lock if the token matches.
+
+    Returns:
+        JSONResponse with ok=True if released, 403 if token mismatch.
+
+    """
+    is_locked, stored_token, _, __ = _check_lock(lock_path, timeout)
+    if is_locked and stored_token == token:
+        lock_path.unlink(missing_ok=True)
+        return JSONResponse({"ok": True})
+    return JSONResponse(
+        {"ok": False, "error": "Lock not held or token mismatch."}, status_code=403
+    )
+
+
+def _save_file(
+    file_path: pathlib.Path,
+    lock_path: pathlib.Path,
+    content: str,
+    token: str,
+    timeout: int,
+) -> JSONResponse:
+    """Validate lock token, back up the file, write new content, and release lock.
+
+    Returns:
+        JSONResponse with ok=True on success, error JSON on failure.
+
+    """
+    is_locked, stored_token, _, __ = _check_lock(lock_path, timeout)
+    if not is_locked:
+        return JSONResponse({"ok": False, "error": "Lock expired."}, status_code=409)
+    if stored_token != token:
+        return JSONResponse({"ok": False, "error": "Invalid token."}, status_code=403)
+    if file_path.exists():
+        backup_ts = datetime.datetime.now(tz=datetime.UTC).strftime("%Y%m%d%H%M%S")
+        shutil.copy2(file_path, file_path.parent / f"{file_path.name}.{backup_ts}")
+    file_path.write_text(content, encoding="utf-8")
+    lock_path.unlink(missing_ok=True)
+    return JSONResponse({"ok": True})
+
+
 def _config_which_to_filename(which: str) -> str:
     if which not in {"config", "logging"}:
         raise HTTPException(status_code=400, detail=f"Unknown config type: {which!r}.")
@@ -423,19 +545,12 @@ async def force_unlock_service_config(
     Returns:
         JSONResponse with ok=True on success.
 
-    Raises:
-        HTTPException: If the environment is not found.
-
     """
     cfg = _get_config(request)
-    environments = cfg.load_environments()
-    env = next((e for e in environments if e.name == name), None)
-    if env is None:
-        raise HTTPException(status_code=404, detail=f"Environment '{name}' not found.")
+    env = _get_environment_or_404(name, cfg)
     filename = _config_which_to_filename(which)
     resolved = env.resolved_root_path(cfg.default_environment_base_path)
-    (resolved / "config" / service / f"{filename}.lock").unlink(missing_ok=True)
-    return JSONResponse({"ok": True})
+    return _force_unlock_file(resolved / "config" / service / f"{filename}.lock")
 
 
 @router.post("/{name}/services/{service}/config/{which}/lock")
@@ -447,34 +562,13 @@ async def acquire_service_config_lock(
     Returns:
         JSONResponse with ok=True and token on success, or conflict info.
 
-    Raises:
-        HTTPException: If the environment is not found.
-
     """
     cfg = _get_config(request)
-    environments = cfg.load_environments()
-    env = next((e for e in environments if e.name == name), None)
-    if env is None:
-        raise HTTPException(status_code=404, detail=f"Environment '{name}' not found.")
+    env = _get_environment_or_404(name, cfg)
     filename = _config_which_to_filename(which)
     resolved = env.resolved_root_path(cfg.default_environment_base_path)
     lock_path = resolved / "config" / service / f"{filename}.lock"
-    is_locked, _, locked_since, locked_since_ts = _check_lock(
-        lock_path, cfg.file_edit_lock_timeout_sec
-    )
-    if is_locked:
-        return JSONResponse(
-            {
-                "ok": False,
-                "locked_since": locked_since,
-                "locked_since_ts": locked_since_ts,
-            },
-            status_code=409,
-        )
-    ts = time.time()
-    token = str(uuid.uuid4())
-    lock_path.write_text(f"{token}\n{ts}", encoding="utf-8")
-    return JSONResponse({"ok": True, "token": token, "acquired_ts": ts})
+    return _acquire_file_lock(lock_path, cfg.file_edit_lock_timeout_sec)
 
 
 @router.post("/{name}/services/{service}/config/{which}/unlock")
@@ -486,25 +580,13 @@ async def release_service_config_lock(
     Returns:
         JSONResponse with ok=True if the lock was released.
 
-    Raises:
-        HTTPException: If the environment is not found.
-
     """
     cfg = _get_config(request)
-    environments = cfg.load_environments()
-    env = next((e for e in environments if e.name == name), None)
-    if env is None:
-        raise HTTPException(status_code=404, detail=f"Environment '{name}' not found.")
+    env = _get_environment_or_404(name, cfg)
     filename = _config_which_to_filename(which)
     resolved = env.resolved_root_path(cfg.default_environment_base_path)
     lock_path = resolved / "config" / service / f"{filename}.lock"
-    is_locked, token, _, __ = _check_lock(lock_path, cfg.file_edit_lock_timeout_sec)
-    if is_locked and token == body.token:
-        lock_path.unlink(missing_ok=True)
-        return JSONResponse({"ok": True})
-    return JSONResponse(
-        {"ok": False, "error": "Lock not held or token mismatch."}, status_code=403
-    )
+    return _release_file_lock(lock_path, body.token, cfg.file_edit_lock_timeout_sec)
 
 
 @router.post("/{name}/services/{service}/config/{which}/save")
@@ -516,30 +598,151 @@ async def save_service_config(
     Returns:
         JSONResponse with ok=True on success.
 
-    Raises:
-        HTTPException: If the environment is not found.
-
     """
     cfg = _get_config(request)
-    environments = cfg.load_environments()
-    env = next((e for e in environments if e.name == name), None)
-    if env is None:
-        raise HTTPException(status_code=404, detail=f"Environment '{name}' not found.")
+    env = _get_environment_or_404(name, cfg)
     filename = _config_which_to_filename(which)
     resolved = env.resolved_root_path(cfg.default_environment_base_path)
     config_path = resolved / "config" / service / filename
     lock_path = resolved / "config" / service / f"{filename}.lock"
-    is_locked, token, _, __ = _check_lock(lock_path, cfg.file_edit_lock_timeout_sec)
-    if not is_locked:
-        return JSONResponse({"ok": False, "error": "Lock expired."}, status_code=409)
-    if token != body.token:
-        return JSONResponse({"ok": False, "error": "Invalid token."}, status_code=403)
-    if config_path.exists():
-        backup_ts = datetime.datetime.now(tz=datetime.UTC).strftime("%Y%m%d%H%M%S")
-        shutil.copy2(config_path, config_path.parent / f"{filename}.{backup_ts}")
-    config_path.write_text(body.content, encoding="utf-8")
-    lock_path.unlink(missing_ok=True)
-    return JSONResponse({"ok": True})
+    return _save_file(
+        config_path, lock_path, body.content, body.token, cfg.file_edit_lock_timeout_sec
+    )
+
+
+def _load_topology_context(service: str, resolved: pathlib.Path, timeout: int) -> dict:
+    """Build topology JSON template context for the service config page.
+
+    Returns:
+        Dict with topology_json_path, topology_content, and lock state keys.
+
+    """
+    empty: dict = {
+        "topology_json_path": None,
+        "topology_content": None,
+        "topology_is_locked": False,
+        "topology_locked_since": None,
+        "topology_locked_since_ts": None,
+    }
+    if service != "gateway":
+        return empty
+    path = _get_topology_json_path(resolved)
+    if path is None:
+        return empty
+    content = path.read_text(encoding="utf-8") if path.exists() else None
+    lock_path = path.parent / f"{path.name}.lock"
+    is_locked, _, locked_since, locked_since_ts = _check_lock(lock_path, timeout)
+    return {
+        "topology_json_path": path,
+        "topology_content": content,
+        "topology_is_locked": is_locked,
+        "topology_locked_since": locked_since,
+        "topology_locked_since_ts": locked_since_ts,
+    }
+
+
+def _resolve_topology_path(name: str, cfg: AppConfig) -> pathlib.Path:
+    """Look up the topology JSON path for a named environment.
+
+    Returns:
+        The resolved topology JSON file Path.
+
+    Raises:
+        HTTPException: If environment not found or topology path not configured.
+
+    """
+    env = _get_environment_or_404(name, cfg)
+    resolved = env.resolved_root_path(cfg.default_environment_base_path)
+    path = _get_topology_json_path(resolved)
+    if path is None:
+        raise HTTPException(
+            status_code=404,
+            detail="device_topology_json_path not configured in gateway config.",
+        )
+    return path
+
+
+@router.post("/{name}/gateway/topology-json/force-unlock")
+async def force_unlock_gateway_topology_json(
+    request: Request, name: str
+) -> JSONResponse:
+    """Force-unlock the gateway device topology JSON file.
+
+    Returns:
+        JSONResponse with ok=True on success.
+
+    """
+    cfg = _get_config(request)
+    path = _resolve_topology_path(name, cfg)
+    return _force_unlock_file(path.parent / f"{path.name}.lock")
+
+
+@router.post("/{name}/gateway/topology-json/lock")
+async def acquire_gateway_topology_json_lock(
+    request: Request, name: str
+) -> JSONResponse:
+    """Acquire a lock on the gateway device topology JSON file.
+
+    Returns:
+        JSONResponse with ok=True and token on success, or conflict info.
+
+    """
+    cfg = _get_config(request)
+    path = _resolve_topology_path(name, cfg)
+    lock_path = path.parent / f"{path.name}.lock"
+    return _acquire_file_lock(lock_path, cfg.file_edit_lock_timeout_sec)
+
+
+@router.post("/{name}/gateway/topology-json/unlock")
+async def release_gateway_topology_json_lock(
+    request: Request, name: str, body: _UnlockBody
+) -> JSONResponse:
+    """Release the lock on the gateway device topology JSON file.
+
+    Returns:
+        JSONResponse with ok=True if the lock was released.
+
+    """
+    cfg = _get_config(request)
+    path = _resolve_topology_path(name, cfg)
+    lock_path = path.parent / f"{path.name}.lock"
+    return _release_file_lock(lock_path, body.token, cfg.file_edit_lock_timeout_sec)
+
+
+@router.post("/{name}/gateway/topology-json/save")
+async def save_gateway_topology_json(
+    request: Request, name: str, body: _SaveBody
+) -> JSONResponse:
+    """Save the gateway device topology JSON file after validating the lock token.
+
+    Returns:
+        JSONResponse with ok=True on success.
+
+    """
+    cfg = _get_config(request)
+    path = _resolve_topology_path(name, cfg)
+    lock_path = path.parent / f"{path.name}.lock"
+    return _save_file(
+        path, lock_path, body.content, body.token, cfg.file_edit_lock_timeout_sec
+    )
+
+
+@router.get("/{name}/gateway/topology-json/download")
+async def gateway_topology_json_download(request: Request, name: str) -> FileResponse:
+    """Download the gateway device topology JSON file.
+
+    Returns:
+        FileResponse with the topology JSON content.
+
+    Raises:
+        HTTPException: If the topology file is not found.
+
+    """
+    cfg = _get_config(request)
+    path = _resolve_topology_path(name, cfg)
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="Topology JSON file not found.")
+    return FileResponse(path=path, filename=path.name, media_type="application/json")
 
 
 @router.post("/{name}/dotenv/force-unlock")
@@ -549,19 +752,11 @@ async def force_unlock_dotenv(request: Request, name: str) -> JSONResponse:
     Returns:
         JSONResponse with ok=True on success.
 
-    Raises:
-        HTTPException: If the environment is not found.
-
     """
     cfg = _get_config(request)
-    environments = cfg.load_environments()
-    env = next((e for e in environments if e.name == name), None)
-    if env is None:
-        raise HTTPException(status_code=404, detail=f"Environment '{name}' not found.")
+    env = _get_environment_or_404(name, cfg)
     resolved = env.resolved_root_path(cfg.default_environment_base_path)
-    lock_path = resolved / "config" / ".env.lock"
-    lock_path.unlink(missing_ok=True)
-    return JSONResponse({"ok": True})
+    return _force_unlock_file(resolved / "config" / ".env.lock")
 
 
 @router.post("/{name}/dotenv/lock")
@@ -571,35 +766,13 @@ async def acquire_dotenv_lock(request: Request, name: str) -> JSONResponse:
     Returns:
         JSONResponse with ok=True and token on success, or conflict info.
 
-    Raises:
-        HTTPException: If the environment is not found.
-
     """
     cfg = _get_config(request)
-    environments = cfg.load_environments()
-    env = next((e for e in environments if e.name == name), None)
-    if env is None:
-        raise HTTPException(status_code=404, detail=f"Environment '{name}' not found.")
+    env = _get_environment_or_404(name, cfg)
     resolved = env.resolved_root_path(cfg.default_environment_base_path)
-    lock_path = resolved / "config" / ".env.lock"
-
-    is_locked, _, locked_since, locked_since_ts = _check_lock(
-        lock_path, cfg.file_edit_lock_timeout_sec
+    return _acquire_file_lock(
+        resolved / "config" / ".env.lock", cfg.file_edit_lock_timeout_sec
     )
-    if is_locked:
-        return JSONResponse(
-            {
-                "ok": False,
-                "locked_since": locked_since,
-                "locked_since_ts": locked_since_ts,
-            },
-            status_code=409,
-        )
-
-    ts = time.time()
-    token = str(uuid.uuid4())
-    lock_path.write_text(f"{token}\n{ts}", encoding="utf-8")
-    return JSONResponse({"ok": True, "token": token, "acquired_ts": ts})
 
 
 @router.post("/{name}/dotenv/unlock")
@@ -611,24 +784,12 @@ async def release_dotenv_lock(
     Returns:
         JSONResponse with ok=True if the lock was released.
 
-    Raises:
-        HTTPException: If the environment is not found.
-
     """
     cfg = _get_config(request)
-    environments = cfg.load_environments()
-    env = next((e for e in environments if e.name == name), None)
-    if env is None:
-        raise HTTPException(status_code=404, detail=f"Environment '{name}' not found.")
+    env = _get_environment_or_404(name, cfg)
     resolved = env.resolved_root_path(cfg.default_environment_base_path)
-    lock_path = resolved / "config" / ".env.lock"
-
-    is_locked, token, _, __ = _check_lock(lock_path, cfg.file_edit_lock_timeout_sec)
-    if is_locked and token == body.token:
-        lock_path.unlink(missing_ok=True)
-        return JSONResponse({"ok": True})
-    return JSONResponse(
-        {"ok": False, "error": "Lock not held or token mismatch."}, status_code=403
+    return _release_file_lock(
+        resolved / "config" / ".env.lock", body.token, cfg.file_edit_lock_timeout_sec
     )
 
 
@@ -639,32 +800,15 @@ async def save_dotenv(request: Request, name: str, body: _SaveBody) -> JSONRespo
     Returns:
         JSONResponse with ok=True on success.
 
-    Raises:
-        HTTPException: If the environment is not found.
-
     """
     cfg = _get_config(request)
-    environments = cfg.load_environments()
-    env = next((e for e in environments if e.name == name), None)
-    if env is None:
-        raise HTTPException(status_code=404, detail=f"Environment '{name}' not found.")
+    env = _get_environment_or_404(name, cfg)
     resolved = env.resolved_root_path(cfg.default_environment_base_path)
-    lock_path = resolved / "config" / ".env.lock"
     dotenv_path = resolved / "config" / ".env"
-
-    is_locked, token, _, __ = _check_lock(lock_path, cfg.file_edit_lock_timeout_sec)
-    if not is_locked:
-        return JSONResponse({"ok": False, "error": "Lock expired."}, status_code=409)
-    if token != body.token:
-        return JSONResponse({"ok": False, "error": "Invalid token."}, status_code=403)
-
-    if dotenv_path.exists():
-        backup_ts = datetime.datetime.now(tz=datetime.UTC).strftime("%Y%m%d%H%M%S")
-        shutil.copy2(dotenv_path, dotenv_path.parent / f".env.{backup_ts}")
-
-    dotenv_path.write_text(body.content, encoding="utf-8")
-    lock_path.unlink(missing_ok=True)
-    return JSONResponse({"ok": True})
+    lock_path = resolved / "config" / ".env.lock"
+    return _save_file(
+        dotenv_path, lock_path, body.content, body.token, cfg.file_edit_lock_timeout_sec
+    )
 
 
 @router.get("/{name}/dotenv/download")
@@ -675,14 +819,11 @@ async def environment_dotenv_download(request: Request, name: str) -> FileRespon
         FileResponse with the .env file content.
 
     Raises:
-        HTTPException: If the environment or .env file is not found.
+        HTTPException: If the .env file is not found.
 
     """
     cfg = _get_config(request)
-    environments = cfg.load_environments()
-    env = next((e for e in environments if e.name == name), None)
-    if env is None:
-        raise HTTPException(status_code=404, detail=f"Environment '{name}' not found.")
+    env = _get_environment_or_404(name, cfg)
     dotenv_path = (
         env.resolved_root_path(cfg.default_environment_base_path) / "config" / ".env"
     )
@@ -698,15 +839,9 @@ async def environment_dotenv(request: Request, name: str) -> HTMLResponse:
     Returns:
         HTMLResponse with the .env editor page.
 
-    Raises:
-        HTTPException: If the environment is not found.
-
     """
     cfg = _get_config(request)
-    environments = cfg.load_environments()
-    env = next((e for e in environments if e.name == name), None)
-    if env is None:
-        raise HTTPException(status_code=404, detail=f"Environment '{name}' not found.")
+    env = _get_environment_or_404(name, cfg)
     resolved = env.resolved_root_path(cfg.default_environment_base_path)
     dotenv_path = resolved / "config" / ".env"
     lock_path = resolved / "config" / ".env.lock"
@@ -740,27 +875,24 @@ async def get_environment(request: Request, name: str) -> HTMLResponse:
     Returns:
         HTMLResponse with the environment detail page.
 
-    Raises:
-        HTTPException: If the environment is not found.
-
     """
     cfg = _get_config(request)
-    environments = cfg.load_environments()
-    env = next((e for e in environments if e.name == name), None)
-    if env is None:
-        raise HTTPException(status_code=404, detail=f"Environment '{name}' not found.")
+    env = _get_environment_or_404(name, cfg)
     resolved = env.resolved_root_path(cfg.default_environment_base_path)
-    template_name = _DETAIL_TEMPLATE.get(env.template, "environments/detail.html")
-    ctx: dict = {"env": env, "resolved_root_path": resolved}
-    if env.template == "backend":
-        meta = _read_metadata(resolved)
-        ctx["meta"] = meta
-        ctx["all_versions_installed"] = bool(
+    meta = _read_metadata(resolved)
+    ctx: dict = {
+        "env": env,
+        "resolved_root_path": resolved,
+        "meta": meta,
+        "all_versions_installed": bool(
             meta.get("engine_version")
             and meta.get("tranqu_version")
             and meta.get("gateway_version")
-        )
-    return _get_templates(request).TemplateResponse(request, template_name, ctx)
+        ),
+    }
+    return _get_templates(request).TemplateResponse(
+        request, "environments/backend_detail.html", ctx
+    )
 
 
 @router.delete("/{name}", response_class=HTMLResponse)
@@ -787,8 +919,9 @@ async def delete_environment(request: Request, name: str) -> HTMLResponse:
     remaining = [e for e in environments if e.name != name]
     cfg.save_environments(remaining)
 
+    backend_remaining = [e for e in remaining if e.template == "backend"]
     return _get_templates(request).TemplateResponse(
         request,
         "environments/list.html",
-        {"environments": remaining, "base_path": cfg.default_environment_base_path},
+        _build_list_context(backend_remaining, cfg),
     )
