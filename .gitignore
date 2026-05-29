@@ -168,3 +168,7 @@ cython_debug/
 logs/*.log
 config/environments.yaml
 environments/
+
+# Claude Code — personal/local files (not shared)
+.claude/settings.local.json
+.claude/memory/

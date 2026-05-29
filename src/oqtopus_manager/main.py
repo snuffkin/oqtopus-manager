@@ -28,6 +28,7 @@ def create_app(config_path: pathlib.Path) -> FastAPI:
     templates.env.globals["app_name"] = cfg.app_name
     templates.env.globals["has_app_icon"] = cfg.app_icon_path is not None
     templates.env.globals["has_favicon"] = cfg.favicon_path is not None
+    templates.env.globals["sidebar_links"] = cfg.sidebar_links
     app.state.templates = templates
 
     assets_dir = pathlib.Path.cwd() / "assets"

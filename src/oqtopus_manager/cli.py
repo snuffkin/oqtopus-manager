@@ -98,3 +98,18 @@ async def stream_oqtopus_backend(
     """Run ``oqtopus backend <args>`` in *cwd*."""
     async for chunk in _stream_command(["oqtopus", "backend", *args], cwd):
         yield chunk
+
+
+async def run_oqtopus_backend_output(args: list[str], cwd: pathlib.Path) -> str:
+    """Run ``oqtopus backend <args>`` in *cwd* and return stdout as a string."""
+    try:
+        process = await asyncio.create_subprocess_exec(
+            "oqtopus", "backend", *args,
+            cwd=cwd,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.STDOUT,
+        )
+    except FileNotFoundError:
+        return ""
+    stdout, _ = await process.communicate()
+    return stdout.decode(errors="replace")

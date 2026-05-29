@@ -1,9 +1,11 @@
 """SSE endpoint for executing oqtopus backend subcommands."""
 
-from fastapi import APIRouter, HTTPException, Request
-from fastapi.responses import StreamingResponse
+import re
 
-from oqtopus_manager.cli import stream_oqtopus_backend
+from fastapi import APIRouter, HTTPException, Request
+from fastapi.responses import JSONResponse, StreamingResponse
+
+from oqtopus_manager.cli import run_oqtopus_backend_output, stream_oqtopus_backend
 from oqtopus_manager.config import AppConfig
 
 router = APIRouter(prefix="/environments", tags=["backend"])
@@ -73,6 +75,33 @@ def _build_args(
             raise ValueError(f"Invalid status '{status}'")
         return ["device-status", status]
     raise ValueError(f"Unknown command '{cmd}'")
+
+
+@router.get("/{name}/backend/component-versions")
+async def component_versions_list(
+    request: Request,
+    name: str,
+    component: str,
+) -> JSONResponse:
+    """Run ``oqtopus backend versions <component>`` and return parsed version list."""
+    if component not in _VALID_COMPONENTS:
+        raise HTTPException(status_code=400, detail=f"Invalid component '{component}'")
+
+    cfg = _get_config(request)
+    environments = cfg.load_environments()
+    env = next((e for e in environments if e.name == name), None)
+    if env is None:
+        raise HTTPException(status_code=404, detail=f"Environment '{name}' not found.")
+
+    cwd = env.resolved_root_path(cfg.default_environment_base_path)
+    output = await run_oqtopus_backend_output(["versions", component], cwd)
+
+    versions = [
+        m.group()
+        for line in output.splitlines()
+        if (m := re.search(r"v\d+[\w.+-]*", line))
+    ]
+    return JSONResponse({"versions": versions})
 
 
 @router.get("/{name}/backend/stream")

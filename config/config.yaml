@@ -1,13 +1,28 @@
-default_environment_base_path: ./environments
-environments_file: ./config/environments.yaml
+# Server settings: binding address and environment data paths
+server:
+  address: localhost:8080
+  default_environment_base_path: ./environments
+  environments_file: ./config/environments.yaml
 
-address: 127.0.0.1:8000
+# Behavior settings: screen behavior tuning (buffer sizes, timeouts, feature flags)
+behavior:
+  log_tail_lines: 100
+  log_buffer_lines: 1000
+  file_edit_lock_timeout_sec: 600
 
-log_tail_lines: 100
-log_buffer_lines: 1000
-
-app_name: OQTOPUS Manager
-app_icon_path: ./assets/favicon.svg
-favicon_path: ./assets/favicon.svg
-
-file_edit_lock_timeout_sec: 600
+# Appearance settings: app branding and sidebar links
+appearance:
+  app_name: OQTOPUS Manager
+  app_icon_path: ./assets/favicon.svg
+  favicon_path: ./assets/favicon.svg
+  sidebar_links:
+    - label: Documentation
+      url: https://github.com/snuffkin/oqtopus-manager
+    - label: OQTOPUS Cloud
+      url: https://your-cloud-url/
+    - label: OQTOPUS Admin
+      url: https://your-admin-url/
+    - label: OQTOPUS Monitoring
+      url: https://your-monitoring-url/
+    - label: QDash
+      url: https://your-qdash-url/

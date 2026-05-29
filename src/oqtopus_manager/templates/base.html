@@ -26,6 +26,15 @@
     .sidebar-collapsed .nav-section-label  { opacity: 0; height: 0; overflow: hidden; padding: 0; margin: 0; }
     .sidebar-collapsed #toggle-chevron     { transform: rotate(180deg); }
 
+    /* Sidebar toggle button: always centered in the icon column (never moves) */
+    #sidebar-toggle-wrap {
+      position: fixed;
+      top: calc(3.5rem + 1rem);
+      left: 1.75rem;
+      transform: translateX(-50%);
+      z-index: 15;
+    }
+
     /* Buttons */
     .btn {
       display: inline-flex; align-items: center; justify-content: center;
@@ -37,6 +46,8 @@
     .btn:disabled, .btn-disabled { opacity: 0.6; cursor: not-allowed; pointer-events: none; background: #f0f2f5 !important; }
     .btn-primary { background-color: #4887FA; border-color: #4887FA; color: #fff; }
     .btn-primary:hover:not(:disabled) { background-color: #3672e8; border-color: #3672e8; }
+    .btn-primary.btn-outline { background: #fff; border-color: #4887FA; color: #4887FA; }
+    .btn-primary.btn-outline:hover:not(:disabled) { background-color: #eff4ff; }
     .btn-ghost { background: transparent; border-color: transparent; color: #6b7280; }
     .btn-ghost:hover:not(:disabled) { background-color: #f3f4f6; color: #111827; }
     .btn-outline { background: #fff; border-color: #d1d5db; color: #6b7280; }
@@ -159,19 +170,20 @@
     </a>
   </header>
 
+  <!-- Sidebar toggle button: fixed at sidebar right edge, always same position -->
+  <div id="sidebar-toggle-wrap">
+    <button id="sidebar-toggle"
+            class="w-7 h-7 flex items-center justify-center rounded-full border border-gray-200 bg-white hover:bg-gray-50 text-gray-400 hover:text-gray-600 transition-colors shadow-sm"
+            title="Toggle sidebar">
+      <svg id="toggle-chevron" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 transition-transform duration-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+        <path d="M15 18l-6-6 6-6"/>
+      </svg>
+    </button>
+  </div>
+
   <!-- Sidebar (fixed, starts below header) -->
   <aside id="sidebar" class="w-56 bg-white border-r border-gray-200 flex flex-col fixed top-14 left-0 bottom-0 z-10 overflow-hidden shadow-sm">
-    <!-- Sidebar toggle button -->
-    <div class="flex justify-end px-2 pt-2 pb-1">
-      <button id="sidebar-toggle"
-              class="w-7 h-7 flex items-center justify-center rounded-full border border-gray-200 bg-white hover:bg-gray-50 text-gray-400 hover:text-gray-600 transition-colors shadow-sm"
-              title="Toggle sidebar">
-        <svg id="toggle-chevron" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 transition-transform duration-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-          <path d="M15 18l-6-6 6-6"/>
-        </svg>
-      </button>
-    </div>
-    <nav class="flex-1 px-2 py-1 space-y-0.5 overflow-y-auto">
+    <nav class="flex-1 px-2 pt-16 pb-2 space-y-0.5 overflow-y-auto">
       <p class="nav-section-label px-2.5 pb-1.5 text-xs font-semibold text-gray-400 uppercase tracking-wider">Manage</p>
 
       <a href="/environments" title="Environments"
@@ -203,6 +215,21 @@
         </svg>
         <span class="sidebar-label">API Docs</span>
       </a>
+
+      {% if sidebar_links %}
+      <p class="nav-section-label px-2.5 pb-1.5 pt-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">Links</p>
+      {% for link in sidebar_links %}
+      <a href="{{ link.url }}" target="_blank" rel="noopener noreferrer" title="{{ link.label }}"
+         class="flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm font-medium transition-colors duration-150 text-gray-600 hover:bg-gray-50 hover:text-gray-900">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+          <polyline points="15 3 21 3 21 9"/>
+          <line x1="10" y1="14" x2="21" y2="3"/>
+        </svg>
+        <span class="sidebar-label">{{ link.label }}</span>
+      </a>
+      {% endfor %}
+      {% endif %}
 
       <p class="nav-section-label px-2.5 pb-1.5 pt-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">System</p>
 

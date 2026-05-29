@@ -8,6 +8,13 @@ from pydantic import BaseModel
 from oqtopus_manager.models.environment import Environment
 
 
+class SidebarLink(BaseModel):
+    """A single external link shown in the sidebar LINKS section."""
+
+    label: str
+    url: str
+
+
 class AppConfig(BaseModel):
     """Top-level application configuration."""
 
@@ -21,6 +28,7 @@ class AppConfig(BaseModel):
     app_icon_path: pathlib.Path | None = None
     favicon_path: pathlib.Path | None = None
     file_edit_lock_timeout_sec: int = 600
+    sidebar_links: list[SidebarLink] = []
 
     @property
     def host(self) -> str:
@@ -44,28 +52,36 @@ class AppConfig(BaseModel):
             raw = yaml.safe_load(f)
 
         cwd = pathlib.Path.cwd()
-        default_base = cwd / pathlib.Path(raw["default_environment_base_path"])
-        environments_file = cwd / pathlib.Path(raw["environments_file"])
+        server = raw.get("server", {})
+        behavior = raw.get("behavior", {})
+        appearance = raw.get("appearance", {})
+
+        default_base = cwd / pathlib.Path(server["default_environment_base_path"])
+        environments_file = cwd / pathlib.Path(server["environments_file"])
 
         return cls(
             config_path=config_path.resolve(),
             default_environment_base_path=default_base.resolve(),
             environments_file=environments_file.resolve(),
-            address=raw.get("address", "127.0.0.1:8000"),
-            log_tail_lines=raw.get("log_tail_lines", 100),
-            log_buffer_lines=raw.get("log_buffer_lines", 1000),
-            app_name=raw.get("app_name", "OQTOPUS Manager"),
+            address=server.get("address", "127.0.0.1:8000"),
+            log_tail_lines=behavior.get("log_tail_lines", 100),
+            log_buffer_lines=behavior.get("log_buffer_lines", 1000),
+            app_name=appearance.get("app_name", "OQTOPUS Manager"),
             app_icon_path=(
-                (cwd / pathlib.Path(raw["app_icon_path"])).resolve()
-                if raw.get("app_icon_path")
+                (cwd / pathlib.Path(appearance["app_icon_path"])).resolve()
+                if appearance.get("app_icon_path")
                 else None
             ),
             favicon_path=(
-                (cwd / pathlib.Path(raw["favicon_path"])).resolve()
-                if raw.get("favicon_path")
+                (cwd / pathlib.Path(appearance["favicon_path"])).resolve()
+                if appearance.get("favicon_path")
                 else None
             ),
-            file_edit_lock_timeout_sec=raw.get("file_edit_lock_timeout_sec", 600),
+            file_edit_lock_timeout_sec=behavior.get("file_edit_lock_timeout_sec", 600),
+            sidebar_links=[
+                SidebarLink(**item)
+                for item in (appearance.get("sidebar_links") or [])
+            ],
         )
 
     def load_environments(self) -> list[Environment]:

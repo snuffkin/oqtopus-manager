@@ -173,6 +173,13 @@ async def service_config(request: Request, name: str, service: str) -> HTMLRespo
     def _read(path: pathlib.Path) -> str | None:
         return path.read_text(encoding="utf-8") if path.exists() else None
 
+    config_locked, _, config_locked_since, config_locked_since_ts = _check_lock(
+        config_dir / "config.yaml.lock", cfg.file_edit_lock_timeout_sec
+    )
+    logging_locked, _, logging_locked_since, logging_locked_since_ts = _check_lock(
+        config_dir / "logging.yaml.lock", cfg.file_edit_lock_timeout_sec
+    )
+
     return _get_templates(request).TemplateResponse(
         request,
         "environments/service_config.html",
@@ -182,6 +189,13 @@ async def service_config(request: Request, name: str, service: str) -> HTMLRespo
             "config_dir": config_dir,
             "config_content": _read(config_dir / "config.yaml"),
             "logging_content": _read(config_dir / "logging.yaml"),
+            "config_is_locked": config_locked,
+            "config_locked_since": config_locked_since,
+            "config_locked_since_ts": config_locked_since_ts,
+            "logging_is_locked": logging_locked,
+            "logging_locked_since": logging_locked_since,
+            "logging_locked_since_ts": logging_locked_since_ts,
+            "lock_timeout_sec": cfg.file_edit_lock_timeout_sec,
         },
     )
 
@@ -283,6 +297,96 @@ def _check_lock(lock_path: pathlib.Path, timeout: int) -> tuple[bool, str | None
     except Exception:
         lock_path.unlink(missing_ok=True)
     return False, None, None, None
+
+
+def _config_which_to_filename(which: str) -> str:
+    if which not in ("config", "logging"):
+        raise HTTPException(status_code=400, detail=f"Unknown config type: {which!r}.")
+    return f"{which}.yaml"
+
+
+@router.post("/{name}/services/{service}/config/{which}/force-unlock")
+async def force_unlock_service_config(
+    request: Request, name: str, service: str, which: str
+) -> JSONResponse:
+    cfg = _get_config(request)
+    environments = cfg.load_environments()
+    env = next((e for e in environments if e.name == name), None)
+    if env is None:
+        raise HTTPException(status_code=404, detail=f"Environment '{name}' not found.")
+    filename = _config_which_to_filename(which)
+    resolved = env.resolved_root_path(cfg.default_environment_base_path)
+    (resolved / "config" / service / f"{filename}.lock").unlink(missing_ok=True)
+    return JSONResponse({"ok": True})
+
+
+@router.post("/{name}/services/{service}/config/{which}/lock")
+async def acquire_service_config_lock(
+    request: Request, name: str, service: str, which: str
+) -> JSONResponse:
+    cfg = _get_config(request)
+    environments = cfg.load_environments()
+    env = next((e for e in environments if e.name == name), None)
+    if env is None:
+        raise HTTPException(status_code=404, detail=f"Environment '{name}' not found.")
+    filename = _config_which_to_filename(which)
+    resolved = env.resolved_root_path(cfg.default_environment_base_path)
+    lock_path = resolved / "config" / service / f"{filename}.lock"
+    is_locked, _, locked_since, locked_since_ts = _check_lock(lock_path, cfg.file_edit_lock_timeout_sec)
+    if is_locked:
+        return JSONResponse(
+            {"ok": False, "locked_since": locked_since, "locked_since_ts": locked_since_ts},
+            status_code=409,
+        )
+    ts = time.time()
+    token = str(uuid.uuid4())
+    lock_path.write_text(f"{token}\n{ts}", encoding="utf-8")
+    return JSONResponse({"ok": True, "token": token, "acquired_ts": ts})
+
+
+@router.post("/{name}/services/{service}/config/{which}/unlock")
+async def release_service_config_lock(
+    request: Request, name: str, service: str, which: str, body: _UnlockBody
+) -> JSONResponse:
+    cfg = _get_config(request)
+    environments = cfg.load_environments()
+    env = next((e for e in environments if e.name == name), None)
+    if env is None:
+        raise HTTPException(status_code=404, detail=f"Environment '{name}' not found.")
+    filename = _config_which_to_filename(which)
+    resolved = env.resolved_root_path(cfg.default_environment_base_path)
+    lock_path = resolved / "config" / service / f"{filename}.lock"
+    is_locked, token, _, __ = _check_lock(lock_path, cfg.file_edit_lock_timeout_sec)
+    if is_locked and token == body.token:
+        lock_path.unlink(missing_ok=True)
+        return JSONResponse({"ok": True})
+    return JSONResponse({"ok": False, "error": "Lock not held or token mismatch."}, status_code=403)
+
+
+@router.post("/{name}/services/{service}/config/{which}/save")
+async def save_service_config(
+    request: Request, name: str, service: str, which: str, body: _SaveBody
+) -> JSONResponse:
+    cfg = _get_config(request)
+    environments = cfg.load_environments()
+    env = next((e for e in environments if e.name == name), None)
+    if env is None:
+        raise HTTPException(status_code=404, detail=f"Environment '{name}' not found.")
+    filename = _config_which_to_filename(which)
+    resolved = env.resolved_root_path(cfg.default_environment_base_path)
+    config_path = resolved / "config" / service / filename
+    lock_path = resolved / "config" / service / f"{filename}.lock"
+    is_locked, token, _, __ = _check_lock(lock_path, cfg.file_edit_lock_timeout_sec)
+    if not is_locked:
+        return JSONResponse({"ok": False, "error": "Lock expired."}, status_code=409)
+    if token != body.token:
+        return JSONResponse({"ok": False, "error": "Invalid token."}, status_code=403)
+    if config_path.exists():
+        backup_ts = datetime.now().strftime("%Y%m%d%H%M%S")
+        shutil.copy2(config_path, config_path.parent / f"{filename}.{backup_ts}")
+    config_path.write_text(body.content, encoding="utf-8")
+    lock_path.unlink(missing_ok=True)
+    return JSONResponse({"ok": True})
 
 
 @router.post("/{name}/dotenv/force-unlock")
