@@ -167,7 +167,7 @@ cython_debug/
 # OQTOPUS Manager temporary files
 logs/*.log
 config/environments.yaml
-environments/
+/environments/
 
 # Claude Code — personal/local files (not shared)
 .claude/settings.local.json
