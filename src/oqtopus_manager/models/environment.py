@@ -1,6 +1,8 @@
 """Environment data model."""
 
-import pathlib
+from __future__ import annotations
+
+import pathlib  # noqa: TC003
 import re
 
 from pydantic import BaseModel, field_validator
@@ -19,6 +21,15 @@ class Environment(BaseModel):
     @field_validator("name")
     @classmethod
     def validate_name(cls, v: str) -> str:
+        """Validate that the name matches the allowed pattern.
+
+        Returns:
+            The validated name string.
+
+        Raises:
+            ValueError: If the name does not match the required pattern.
+
+        """
         if not _NAME_PATTERN.match(v):
             msg = (
                 f"Invalid environment name '{v}'. "
@@ -29,5 +40,10 @@ class Environment(BaseModel):
         return v
 
     def resolved_root_path(self, base_path: pathlib.Path) -> pathlib.Path:
-        """Return the effective root path, falling back to base_path/name."""
+        """Return the effective root path, falling back to base_path/name.
+
+        Returns:
+            The resolved root path for this environment.
+
+        """
         return self.root_path or base_path / self.name

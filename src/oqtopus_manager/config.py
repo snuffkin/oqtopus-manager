@@ -41,12 +41,16 @@ class AppConfig(BaseModel):
         return int(self.address.rsplit(":", 1)[1])
 
     @classmethod
-    def load(cls, config_path: pathlib.Path) -> "AppConfig":
+    def load(cls, config_path: pathlib.Path) -> AppConfig:
         """Load AppConfig from a YAML file.
 
         Relative paths in the config are resolved against the current working
         directory so that paths behave predictably regardless of where the
         config file itself lives.
+
+        Returns:
+            The loaded AppConfig instance.
+
         """
         with config_path.open(encoding="utf-8") as f:
             raw = yaml.safe_load(f)
@@ -79,8 +83,7 @@ class AppConfig(BaseModel):
             ),
             file_edit_lock_timeout_sec=behavior.get("file_edit_lock_timeout_sec", 600),
             sidebar_links=[
-                SidebarLink(**item)
-                for item in (appearance.get("sidebar_links") or [])
+                SidebarLink(**item) for item in (appearance.get("sidebar_links") or [])
             ],
         )
 
@@ -88,6 +91,10 @@ class AppConfig(BaseModel):
         """Load environments from the environments YAML file.
 
         Returns an empty list if the file does not exist yet.
+
+        Returns:
+            List of Environment instances loaded from the YAML file.
+
         """
         if not self.environments_file.exists():
             return []
@@ -99,7 +106,10 @@ class AppConfig(BaseModel):
         """Persist environments to the environments YAML file."""
         data = {
             "environments": [
-                {k: str(v) if isinstance(v, pathlib.Path) else v for k, v in e.model_dump(exclude_none=True).items()}
+                {
+                    k: str(v) if isinstance(v, pathlib.Path) else v
+                    for k, v in e.model_dump(exclude_none=True).items()
+                }
                 for e in environments
             ]
         }

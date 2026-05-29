@@ -1,18 +1,32 @@
 """SSE endpoint for executing oqtopus backend subcommands."""
 
+from __future__ import annotations
+
 import re
+from typing import TYPE_CHECKING
 
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import JSONResponse, StreamingResponse
 
 from oqtopus_manager.cli import run_oqtopus_backend_output, stream_oqtopus_backend
-from oqtopus_manager.config import AppConfig
+
+if TYPE_CHECKING:
+    from collections.abc import AsyncGenerator
+
+    from oqtopus_manager.config import AppConfig
 
 router = APIRouter(prefix="/environments", tags=["backend"])
 
-_VALID_SERVICES = frozenset(
-    {"all", "core", "sse_engine", "mitigator", "estimator", "combiner", "tranqu", "gateway"}
-)
+_VALID_SERVICES = frozenset({
+    "all",
+    "core",
+    "sse_engine",
+    "mitigator",
+    "estimator",
+    "combiner",
+    "tranqu",
+    "gateway",
+})
 _VALID_COMPONENTS = frozenset({"engine", "tranqu", "gateway"})
 _VALID_STATUSES = frozenset({"active", "inactive", "maintenance"})
 
@@ -21,35 +35,46 @@ def _get_config(request: Request) -> AppConfig:
     return request.app.state.config
 
 
-def _build_args(
+def _build_args(  # noqa: C901, PLR0911, PLR0912, PLR0913, PLR0917
     cmd: str,
     service: str,
     component: str,
     version: str,
-    foreground: bool,
+    foreground: bool,  # noqa: FBT001
     status: str,
-    skip_sse_build: bool,
+    skip_sse_build: bool,  # noqa: FBT001
 ) -> list[str]:
-    """Translate validated query params into oqtopus backend argv."""
+    """Translate validated query params into oqtopus backend argv.
+
+    Returns:
+        List of string arguments to pass to the oqtopus backend CLI.
+
+    Raises:
+        ValueError: If an invalid service, component, status, or command is provided.
+
+    """
     if cmd == "status":
         return ["status"]
     if cmd == "info":
         return ["info"]
     if cmd in {"start", "stop", "restart"}:
         if service not in _VALID_SERVICES:
-            raise ValueError(f"Invalid service '{service}'")
+            msg = f"Invalid service '{service}'"
+            raise ValueError(msg)
         args = [cmd, service]
         if cmd == "start" and foreground:
             args.append("--foreground")
         return args
     if cmd == "versions":
         if component not in _VALID_COMPONENTS:
-            raise ValueError(f"Invalid component '{component}'")
+            msg = f"Invalid component '{component}'"
+            raise ValueError(msg)
         return ["versions", component]
     if cmd == "install":
         comp = component if component in _VALID_COMPONENTS else None
         if comp is None and component != "all":
-            raise ValueError(f"Invalid component '{component}'")
+            msg = f"Invalid component '{component}'"
+            raise ValueError(msg)
         args = ["install", component]
         if component != "all" and version:
             args.append(version)
@@ -58,13 +83,16 @@ def _build_args(
         return args
     if cmd == "update":
         if component not in _VALID_COMPONENTS:
-            raise ValueError(f"Invalid component '{component}'")
+            msg = f"Invalid component '{component}'"
+            raise ValueError(msg)
         return ["update", component]
     if cmd == "uninstall":
         if component not in _VALID_COMPONENTS:
-            raise ValueError(f"Invalid component '{component}'")
+            msg = f"Invalid component '{component}'"
+            raise ValueError(msg)
         if not version:
-            raise ValueError("version is required for uninstall")
+            msg = "version is required for uninstall"
+            raise ValueError(msg)
         return ["uninstall", component, version]
     if cmd == "build":
         return ["build", "sse-runtime"]
@@ -72,9 +100,11 @@ def _build_args(
         return ["device-status", "show"]
     if cmd == "device-status-set":
         if status not in _VALID_STATUSES:
-            raise ValueError(f"Invalid status '{status}'")
+            msg = f"Invalid status '{status}'"
+            raise ValueError(msg)
         return ["device-status", status]
-    raise ValueError(f"Unknown command '{cmd}'")
+    msg = f"Unknown command '{cmd}'"
+    raise ValueError(msg)
 
 
 @router.get("/{name}/backend/component-versions")
@@ -83,7 +113,15 @@ async def component_versions_list(
     name: str,
     component: str,
 ) -> JSONResponse:
-    """Run ``oqtopus backend versions <component>`` and return parsed version list."""
+    """Run oqtopus backend versions <component> and return parsed version list.
+
+    Returns:
+        JSONResponse with a list of version strings.
+
+    Raises:
+        HTTPException: If the component is invalid or environment is not found.
+
+    """
     if component not in _VALID_COMPONENTS:
         raise HTTPException(status_code=400, detail=f"Invalid component '{component}'")
 
@@ -105,18 +143,26 @@ async def component_versions_list(
 
 
 @router.get("/{name}/backend/stream")
-async def backend_stream(
+async def backend_stream(  # noqa: PLR0913, PLR0917
     request: Request,
     name: str,
     cmd: str,
     service: str = "all",
     component: str = "engine",
     version: str = "",
-    foreground: bool = False,
+    foreground: bool = False,  # noqa: FBT001, FBT002
     status: str = "",
-    skip_sse_build: bool = False,
+    skip_sse_build: bool = False,  # noqa: FBT001, FBT002
 ) -> StreamingResponse:
-    """SSE endpoint: run an oqtopus backend subcommand and stream its output."""
+    """SSE endpoint: run an oqtopus backend subcommand and stream its output.
+
+    Returns:
+        StreamingResponse with SSE-formatted output from the backend command.
+
+    Raises:
+        HTTPException: If the environment is not found or command arguments are invalid.
+
+    """
     cfg = _get_config(request)
     environments = cfg.load_environments()
     env = next((e for e in environments if e.name == name), None)
@@ -124,13 +170,15 @@ async def backend_stream(
         raise HTTPException(status_code=404, detail=f"Environment '{name}' not found.")
 
     try:
-        backend_args = _build_args(cmd, service, component, version, foreground, status, skip_sse_build)
+        backend_args = _build_args(
+            cmd, service, component, version, foreground, status, skip_sse_build
+        )
     except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     cwd = env.resolved_root_path(cfg.default_environment_base_path)
 
-    async def event_stream():
+    async def event_stream() -> AsyncGenerator[str]:
         async for chunk in stream_oqtopus_backend(backend_args, cwd):
             yield chunk
 

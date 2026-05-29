@@ -13,8 +13,12 @@ async def browse(request: Request, path: str = "") -> HTMLResponse:
     """Return an HTML directory listing for the given path.
 
     Defaults to the current working directory when *path* is not provided.
+
+    Returns:
+        HTMLResponse with the directory listing.
+
     """
-    current = pathlib.Path(path).resolve() if path else pathlib.Path.cwd()
+    current = pathlib.Path(path).resolve() if path else pathlib.Path.cwd()  # noqa: ASYNC240
 
     if not current.is_dir():
         current = pathlib.Path.cwd()

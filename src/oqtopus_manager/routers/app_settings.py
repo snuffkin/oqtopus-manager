@@ -1,16 +1,27 @@
 """Route for the application settings page."""
 
+from __future__ import annotations
+
 import asyncio
 import shutil
+from typing import TYPE_CHECKING
 
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse
+
+if TYPE_CHECKING:
+    import pathlib
 
 router = APIRouter(prefix="/settings", tags=["settings"])
 
 
 async def _run_quick(argv: list[str]) -> str:
-    """Run a short-lived command and return its output, or an error string."""
+    """Run a short-lived command and return its output, or an error string.
+
+    Returns:
+        The command stdout/stderr output, or an error string on failure.
+
+    """
     try:
         proc = await asyncio.create_subprocess_exec(
             *argv,
@@ -19,19 +30,29 @@ async def _run_quick(argv: list[str]) -> str:
         )
         stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=5)
         out = stdout.decode(errors="replace").strip()
-        return out if out else stderr.decode(errors="replace").strip()
+        return out or stderr.decode(errors="replace").strip()
     except FileNotFoundError:
         return "command not found"
-    except asyncio.TimeoutError:
+    except TimeoutError:
         return "timeout"
 
 
 @router.get("", response_class=HTMLResponse)
 async def settings_page(request: Request) -> HTMLResponse:
+    """Render the application settings page.
+
+    Returns:
+        HTMLResponse with the rendered settings page.
+
+    """
     cfg = request.app.state.config
 
-    def _read(path):
-        return path.read_text(encoding="utf-8") if path.exists() else f"# File not found: {path}"
+    def _read(path: pathlib.Path) -> str:
+        return (
+            path.read_text(encoding="utf-8")
+            if path.exists()
+            else f"# File not found: {path}"
+        )
 
     logging_path = cfg.config_path.parent / "logging.yaml"
     oqtopus_path = shutil.which("oqtopus") or "not found"

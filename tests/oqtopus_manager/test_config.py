@@ -15,8 +15,10 @@ def _write_config(config_dir: pathlib.Path, envs_path: str = "./environments.yam
     config_path.write_text(
         yaml.dump(
             {
-                "default_environment_base_path": "./environments",
-                "environments_file": envs_path,
+                "server": {
+                    "default_environment_base_path": "./environments",
+                    "environments_file": envs_path,
+                }
             }
         ),
         encoding="utf-8",
@@ -43,9 +45,17 @@ def test_address_defaults(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatc
 
 def test_address_custom(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.chdir(tmp_path)
-    config_path = _write_config(tmp_path)
+    config_path = tmp_path / "config.yaml"
     config_path.write_text(
-        config_path.read_text(encoding="utf-8") + "address: 0.0.0.0:9000\n",
+        yaml.dump(
+            {
+                "server": {
+                    "default_environment_base_path": "./environments",
+                    "environments_file": "./environments.yaml",
+                    "address": "0.0.0.0:9000",
+                }
+            }
+        ),
         encoding="utf-8",
     )
     cfg = AppConfig.load(config_path)

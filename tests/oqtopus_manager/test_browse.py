@@ -13,8 +13,10 @@ from oqtopus_manager.main import create_app
 def client(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> TestClient:
     monkeypatch.chdir(tmp_path)
     config = {
-        "default_environment_base_path": "./environments",
-        "environments_file": "./environments.yaml",
+        "server": {
+            "default_environment_base_path": "./environments",
+            "environments_file": "./environments.yaml",
+        }
     }
     cfg_path = tmp_path / "config.yaml"
     cfg_path.write_text(yaml.dump(config), encoding="utf-8")

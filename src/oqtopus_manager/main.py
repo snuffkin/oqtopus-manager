@@ -1,13 +1,12 @@
 """FastAPI application factory and entry point."""
 
 import argparse
-import logging
 import logging.config
 import pathlib
 
 import uvicorn
 import yaml
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -19,7 +18,12 @@ _TEMPLATES_DIR = pathlib.Path(__file__).parent / "templates"
 
 
 def create_app(config_path: pathlib.Path) -> FastAPI:
-    """Create and configure the FastAPI application."""
+    """Create and configure the FastAPI application.
+
+    Returns:
+        The configured FastAPI application instance.
+
+    """
     cfg = AppConfig.load(config_path)
 
     app = FastAPI(title=cfg.app_name)
@@ -49,7 +53,6 @@ def create_app(config_path: pathlib.Path) -> FastAPI:
         icon_path = app.state.config.app_icon_path
         if icon_path and icon_path.exists():
             return FileResponse(path=icon_path)
-        from fastapi import HTTPException
         raise HTTPException(status_code=404, detail="No app icon configured.")
 
     @app.get("/favicon.ico", include_in_schema=False)
@@ -57,7 +60,6 @@ def create_app(config_path: pathlib.Path) -> FastAPI:
         fav_path = app.state.config.favicon_path
         if fav_path and fav_path.exists():
             return FileResponse(path=fav_path)
-        from fastapi import HTTPException
         raise HTTPException(status_code=404, detail="No favicon configured.")
 
     @app.get("/api-docs", response_class=HTMLResponse)
