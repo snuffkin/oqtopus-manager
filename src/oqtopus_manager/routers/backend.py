@@ -14,8 +14,6 @@ from oqtopus_manager.cli import run_oqtopus_backend_output, stream_oqtopus_backe
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator
 
-    from oqtopus_manager.config import AppConfig
-
 router = APIRouter(prefix="/backend", tags=["backend"])
 logger = logging.getLogger(__name__)
 
@@ -31,10 +29,6 @@ _VALID_SERVICES = frozenset({
 })
 _VALID_COMPONENTS = frozenset({"engine", "tranqu", "gateway"})
 _VALID_STATUSES = frozenset({"active", "inactive", "maintenance"})
-
-
-def _get_config(request: Request) -> AppConfig:
-    return request.app.state.config
 
 
 def _build_args(  # noqa: C901, PLR0911, PLR0912, PLR0913, PLR0917
@@ -127,7 +121,7 @@ async def component_versions_list(
     if component not in _VALID_COMPONENTS:
         raise HTTPException(status_code=400, detail=f"Invalid component '{component}'")
 
-    cfg = _get_config(request)
+    cfg = request.app.state.config
     environments = cfg.load_environments()
     env = next((e for e in environments if e.name == name), None)
     if env is None:
@@ -165,7 +159,7 @@ async def backend_stream(  # noqa: PLR0913, PLR0917
         HTTPException: If the environment is not found or command arguments are invalid.
 
     """
-    cfg = _get_config(request)
+    cfg = request.app.state.config
     environments = cfg.load_environments()
     env = next((e for e in environments if e.name == name), None)
     if env is None:

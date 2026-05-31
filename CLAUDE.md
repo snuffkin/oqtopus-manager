@@ -107,19 +107,26 @@ Use the `makeEditor(opts)` factory (see `service_config.html`) when a page has m
 
 ---
 
-## Shared Helpers (`routers/environments.py`)
+## Shared Helpers
 
 Use these helpers when implementing new routes — do not re-implement inline:
+
+### `routers/environments.py`
 
 | Helper | Purpose |
 |---|---|
 | `_get_environment_or_404(name, cfg)` | Load environment by name or raise 404 |
+| `_read_path_from_yaml(yaml_file, keys, env_root)` | Safely traverse nested YAML keys → `Path \| None` |
+
+### `routers/_file_edit.py`
+
+| Helper | Purpose |
+|---|---|
+| `_check_lock(lock_path, timeout)` | Read lock file state → `(is_locked, token, locked_since, locked_since_ts)` |
 | `_force_unlock_file(lock_path)` | Remove lock file unconditionally → `JSONResponse` |
 | `_acquire_file_lock(lock_path, timeout)` | Acquire lock → `{ok, token, acquired_ts}` or 409 |
 | `_release_file_lock(lock_path, token, timeout)` | Release lock (token required) → `{ok}` or 403 |
 | `_save_file(file_path, lock_path, content, token, timeout)` | Validate token, backup, write, release → `{ok}` or 4xx |
-| `_read_path_from_yaml(yaml_file, keys, env_root)` | Safely traverse nested YAML keys → `Path \| None` |
-| `_check_lock(lock_path, timeout)` | Read lock file state → `(is_locked, token, locked_since, locked_since_ts)` |
 
 Route handlers for the file-edit pattern are thin wrappers that call the shared helpers above.
 

@@ -33,24 +33,7 @@
 
 {% block page_banner %}
 <div class="relative overflow-hidden px-8 py-8" style="background: url('/assets/mv_bg.png') center/cover no-repeat; background-color: #2563eb;">
-  <svg class="absolute inset-0 w-full h-full" preserveAspectRatio="xMaxYMid slice" viewBox="0 0 900 160" fill="none">
-    <circle cx="820" cy="60" r="90" fill="white" fill-opacity="0.06"/>
-    <circle cx="820" cy="60" r="50" fill="white" fill-opacity="0.06"/>
-    <circle cx="680" cy="90" r="3" fill="white" fill-opacity="0.5"/>
-    <circle cx="730" cy="45" r="2.5" fill="white" fill-opacity="0.45"/>
-    <circle cx="780" cy="110" r="3.5" fill="white" fill-opacity="0.4"/>
-    <circle cx="760" cy="25" r="2" fill="white" fill-opacity="0.35"/>
-    <circle cx="640" cy="55" r="2.5" fill="white" fill-opacity="0.35"/>
-    <circle cx="820" cy="130" r="2" fill="white" fill-opacity="0.3"/>
-    <circle cx="860" cy="75" r="3" fill="white" fill-opacity="0.4"/>
-    <line x1="680" y1="90" x2="730" y2="45" stroke="white" stroke-opacity="0.25" stroke-width="1"/>
-    <line x1="730" y1="45" x2="780" y2="110" stroke="white" stroke-opacity="0.2" stroke-width="1"/>
-    <line x1="730" y1="45" x2="760" y2="25" stroke="white" stroke-opacity="0.2" stroke-width="1"/>
-    <line x1="680" y1="90" x2="640" y2="55" stroke="white" stroke-opacity="0.2" stroke-width="1"/>
-    <line x1="780" y1="110" x2="820" y2="130" stroke="white" stroke-opacity="0.2" stroke-width="1"/>
-    <line x1="760" y1="25" x2="860" y2="75" stroke="white" stroke-opacity="0.15" stroke-width="1"/>
-    <line x1="860" y1="75" x2="820" y2="130" stroke="white" stroke-opacity="0.2" stroke-width="1"/>
-  </svg>
+  {% include "_banner_svg.html" %}
   <div class="relative">
     <a href="/backend/{{ env.name }}" class="inline-flex items-center gap-1 text-blue-200 hover:text-white text-sm mb-2 transition-colors">
       <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -190,48 +173,7 @@
 
 </details>
 
-<!-- Discard changes confirmation modal -->
-<div id="discard-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center" style="background: rgba(0,0,0,0.4);">
-  <div class="bg-white rounded-xl shadow-xl border border-gray-200 p-6 w-full max-w-sm mx-4">
-    <div class="flex items-start gap-3 mb-4">
-      <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-amber-500 flex-shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
-        <line x1="12" y1="9" x2="12" y2="13"/>
-        <line x1="12" y1="17" x2="12.01" y2="17"/>
-      </svg>
-      <div>
-        <h3 class="text-sm font-semibold text-gray-800 mb-1">Discard Changes</h3>
-        <p class="text-sm text-gray-600">You have unsaved changes. Are you sure you want to discard them?</p>
-      </div>
-    </div>
-    <div class="flex gap-2 justify-end">
-      <button onclick="closeDiscardModal()" class="btn btn-outline btn-sm">Keep Editing</button>
-      <button onclick="doCancel()" class="btn btn-sm" style="background:#fff; border:1px solid #dc2626; color:#dc2626;">Discard Changes</button>
-    </div>
-  </div>
-</div>
-
-<!-- Force Unlock confirmation modal -->
-<div id="force-unlock-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center" style="background: rgba(0,0,0,0.4);">
-  <div class="bg-white rounded-xl shadow-xl border border-gray-200 p-6 w-full max-w-sm mx-4">
-    <div class="flex items-start gap-3 mb-4">
-      <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-red-500 flex-shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
-        <line x1="12" y1="9" x2="12" y2="13"/>
-        <line x1="12" y1="17" x2="12.01" y2="17"/>
-      </svg>
-      <div>
-        <h3 class="text-sm font-semibold text-gray-800 mb-1">Force Unlock</h3>
-        <p class="text-sm text-gray-600">Another user may currently be editing this file. Force unlocking will discard their unsaved changes.</p>
-        <p class="text-sm text-gray-600 mt-2">Are you sure you want to proceed?</p>
-      </div>
-    </div>
-    <div class="flex gap-2 justify-end">
-      <button onclick="closeForceUnlockModal()" class="btn btn-ghost btn-sm">Cancel</button>
-      <button onclick="doForceUnlock()" class="btn btn-sm" style="background:#fff; border:1px solid #dc2626; color:#dc2626;">Force Unlock</button>
-    </div>
-  </div>
-</div>
+{% include "environments/_modals.html" %}
 
 <script>
   function toggleFullscreen() {
@@ -404,23 +346,17 @@
   }
 
   function openForceUnlockModal() {
+    _forceUnlockCb = async function () {
+      await fetch('/backend/' + envName + '/dotenv/force-unlock', { method: 'POST' });
+      var res  = await fetch('/backend/' + envName + '/dotenv/lock', { method: 'POST' });
+      var data = await res.json();
+      if (!data.ok) {
+        showLockBadge(data.locked_since || '?', data.locked_since_ts || Date.now() / 1000);
+        return;
+      }
+      enterEditMode(data.token, data.acquired_ts);
+    };
     document.getElementById('force-unlock-modal').classList.remove('hidden');
-  }
-
-  function closeForceUnlockModal() {
-    document.getElementById('force-unlock-modal').classList.add('hidden');
-  }
-
-  async function doForceUnlock() {
-    closeForceUnlockModal();
-    await fetch('/backend/' + envName + '/dotenv/force-unlock', { method: 'POST' });
-    var res  = await fetch('/backend/' + envName + '/dotenv/lock', { method: 'POST' });
-    var data = await res.json();
-    if (!data.ok) {
-      showLockBadge(data.locked_since || '?', data.locked_since_ts || Date.now() / 1000);
-      return;
-    }
-    enterEditMode(data.token, data.acquired_ts);
   }
 
   async function startEdit() {
@@ -436,18 +372,14 @@
   function cancelEdit() {
     var current = document.getElementById('edit-textarea').value;
     if (current !== rawContent) {
+      _discardCb = doCancel;
       document.getElementById('discard-modal').classList.remove('hidden');
     } else {
       doCancel();
     }
   }
 
-  function closeDiscardModal() {
-    document.getElementById('discard-modal').classList.add('hidden');
-  }
-
   async function doCancel() {
-    closeDiscardModal();
     stopCountdown();
     if (lockToken) {
       await fetch('/backend/' + envName + '/dotenv/unlock', {
