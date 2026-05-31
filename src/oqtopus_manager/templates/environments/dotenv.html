@@ -476,6 +476,17 @@
       errEl.classList.remove('hidden');
     }
   }
+
+  window.addEventListener('beforeunload', function () {
+    if (lockToken) {
+      fetch('/backend/' + envName + '/dotenv/unlock', {
+        method: 'POST',
+        keepalive: true,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token: lockToken }),
+      });
+    }
+  });
 </script>
 {% endif %}
 {% endblock %}

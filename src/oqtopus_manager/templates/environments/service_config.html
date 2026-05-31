@@ -415,6 +415,17 @@
       editPre.scrollLeft = editTa.scrollLeft;
     });
 
+    window.addEventListener('beforeunload', function() {
+      if (lockToken) {
+        fetch(baseUrl + '/unlock', {
+          method: 'POST',
+          keepalive: true,
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({token: lockToken}),
+        });
+      }
+    });
+
     return {startEdit, cancelEdit, cancelEditFromDiff, openForceUnlockModal, showDiff, backToEdit, confirmSave, toggleFullscreen, showLockBadgeOther};
   }
 
