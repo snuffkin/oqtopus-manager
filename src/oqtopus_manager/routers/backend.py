@@ -133,7 +133,7 @@ async def component_versions_list(
     versions = [
         m.group()
         for line in output.splitlines()
-        if (m := re.search(r"v\d+[\w.+-]*", line))
+        if (m := re.search(r"branch:\S+|v\d+[\w.+-]*", line))
     ]
     return JSONResponse({"versions": versions})
 

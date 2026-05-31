@@ -81,20 +81,20 @@
           </select>
           <label class="label py-0"><span class="label-text-alt">&nbsp;</span></label>
         </div>
-        <div class="form-control w-28">
+        <div class="form-control w-40">
           <label class="label py-0.5" for="ver"><span class="label-text text-xs text-gray-500">Version <span class="text-gray-300">(optional)</span></span></label>
           <div id="ver-wrap">
-            <input id="ver" type="text" placeholder="latest" class="input input-bordered input-sm w-28" />
+            <input id="ver" type="text" placeholder="latest" class="input input-bordered input-sm w-40" />
           </div>
           <label class="label py-0">
-            <span class="label-text-alt text-gray-400 whitespace-nowrap">Click Versions to pick a release.</span>
+            <span class="label-text-alt text-gray-400 whitespace-nowrap">Click Versions to pick.</span>
           </label>
         </div>
         <div class="flex flex-col">
           <div class="flex gap-1">
-            <button id="btn-versions" onclick="fetchVersions(this)" class="btn btn-sm btn-outline" disabled>Versions</button>
-            <button                    onclick="runComponentCmd('install', this)"    class="btn btn-sm btn-outline btn-success">Install</button>
-            <button id="btn-uninstall" onclick="runComponentCmd('uninstall', this)"  class="btn btn-sm btn-outline btn-error">Uninstall</button>
+            <button id="btn-versions"  onclick="fetchVersions(this)"              class="btn btn-sm btn-outline" disabled>Versions</button>
+            <button id="btn-install"   onclick="runComponentCmd('install', this)"   class="btn btn-sm btn-outline btn-success">Install</button>
+            <button id="btn-uninstall" onclick="runComponentCmd('uninstall', this)" class="btn btn-sm btn-outline btn-error">Uninstall</button>
           </div>
           <label class="label py-0"><span class="label-text-alt">&nbsp;</span></label>
         </div>
@@ -254,11 +254,16 @@
     var opsEl    = document.getElementById('ops-sections');
     var cardComp = document.getElementById('card-components');
     var buildBtn = document.getElementById('btn-build');
+    var wasHidden = opsEl && opsEl.style.display === 'none';
     if (opsEl)    opsEl.style.display = allInstalled ? 'contents' : 'none';
     if (cardComp) cardComp.classList.toggle('lg:col-span-2', !allInstalled);
     if (buildBtn) {
       var hasEngine = !!document.querySelector('[data-ver="engine_version"] [data-installed]');
       buildBtn.disabled = !hasEngine;
+    }
+    if (allInstalled && wasHidden) {
+      window.fetchStatus(null);
+      window.fetchDeviceStatus(null);
     }
   }
 
@@ -297,7 +302,7 @@
       });
   }
 
-  function startStream(url, label, btnEl, onSuccess) {
+  function startStream(url, label, btnEl, onSuccess, onFinally) {
     if (currentEs) currentEs.close();
     resetBtn(activeBtn);
     activeBtn = btnEl;
@@ -322,12 +327,14 @@
       consoleStatus.textContent = ok ? 'Done' : 'Failed';
       consoleStatus.className = 'text-xs font-semibold ' + (ok ? 'text-green-600' : 'text-red-500');
       if (ok && typeof onSuccess === 'function') onSuccess();
+      if (typeof onFinally === 'function') onFinally();
     });
     currentEs.onerror = function () {
       currentEs.close(); currentEs = null;
       resetBtn(activeBtn); activeBtn = null;
       consoleStatus.textContent = 'Connection error';
       consoleStatus.className = 'text-xs text-red-500 font-semibold';
+      if (typeof onFinally === 'function') onFinally();
     };
   }
 
@@ -346,9 +353,15 @@
     var params = new URLSearchParams({ cmd: action, component: comp });
     if (ver) params.set('version', ver);
     var needsRefresh = (action === 'install' || action === 'update' || action === 'uninstall');
+    var compBtnIds = ['btn-versions', 'btn-install', 'btn-uninstall'];
+    compBtnIds.forEach(function (id) { var b = document.getElementById(id); if (b) b.disabled = true; });
     startStream('/backend/{{ env.name }}/stream?' + params,
       action + ' ' + comp + (ver ? ' ' + ver : ''), btn,
-      needsRefresh ? refreshSettings : null);
+      needsRefresh ? refreshSettings : null,
+      function () {
+        compBtnIds.forEach(function (id) { var b = document.getElementById(id); if (b) b.disabled = false; });
+        syncCompState();
+      });
   };
 
   var _VALID_COMP = new Set(['engine', 'tranqu', 'gateway']);
@@ -362,16 +375,18 @@
       .then(function (r) { return r.json(); })
       .then(function (data) {
         var wrap = document.getElementById('ver-wrap');
-        var opts = '<option value="">latest</option>' +
-          data.versions.map(function (v) { return '<option value="' + escapeHtml(v) + '">' + escapeHtml(v) + '</option>'; }).join('');
-        wrap.innerHTML = '<select id="ver" class="select select-bordered select-sm w-28">' + opts + '</select>';
+        var branches = data.versions.filter(function (v) { return v.startsWith('branch:'); });
+        var releases = data.versions.filter(function (v) { return !v.startsWith('branch:'); });
+        var toOpt = function (v) { return '<option value="' + escapeHtml(v) + '">' + escapeHtml(v) + '</option>'; };
+        var opts = branches.map(toOpt).join('') + '<option value="">latest</option>' + releases.map(toOpt).join('');
+        wrap.innerHTML = '<select id="ver" class="select select-bordered select-sm w-40">' + opts + '</select>';
       })
       .catch(function () {});
   };
 
   document.getElementById('comp').addEventListener('change', function () {
     var wrap = document.getElementById('ver-wrap');
-    wrap.innerHTML = '<input id="ver" type="text" placeholder="latest" class="input input-bordered input-sm w-28" />';
+    wrap.innerHTML = '<input id="ver" type="text" placeholder="latest" class="input input-bordered input-sm w-40" />';
     var vBtn = document.getElementById('btn-versions');
     if (vBtn) vBtn.disabled = !_VALID_COMP.has(this.value);
   });

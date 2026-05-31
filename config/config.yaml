@@ -1,6 +1,7 @@
 # Server settings: binding address and environment data paths
 server:
-  address: localhost:8080
+  host: localhost
+  port: 8081
   default_environment_base_path: ./environments
   environments_file: ./config/environments.yaml
 

@@ -21,7 +21,8 @@ class AppConfig(BaseModel):
     config_path: pathlib.Path
     default_environment_base_path: pathlib.Path
     environments_file: pathlib.Path
-    address: str = "127.0.0.1:8000"
+    host: str = "127.0.0.1"
+    port: int = 8000
     log_tail_lines: int = 100
     log_buffer_lines: int = 1000
     app_name: str = "OQTOPUS Manager"
@@ -29,16 +30,6 @@ class AppConfig(BaseModel):
     favicon_path: pathlib.Path | None = None
     file_edit_lock_timeout_sec: int = 600
     sidebar_links: list[SidebarLink] = []
-
-    @property
-    def host(self) -> str:
-        """Hostname extracted from *address*."""
-        return self.address.rsplit(":", 1)[0]
-
-    @property
-    def port(self) -> int:
-        """Port number extracted from *address*."""
-        return int(self.address.rsplit(":", 1)[1])
 
     @classmethod
     def load(cls, config_path: pathlib.Path) -> AppConfig:
@@ -67,7 +58,8 @@ class AppConfig(BaseModel):
             config_path=config_path.resolve(),
             default_environment_base_path=default_base.resolve(),
             environments_file=environments_file.resolve(),
-            address=server.get("address", "127.0.0.1:8000"),
+            host=server.get("host", "127.0.0.1"),
+            port=server.get("port", 8000),
             log_tail_lines=behavior.get("log_tail_lines", 100),
             log_buffer_lines=behavior.get("log_buffer_lines", 1000),
             app_name=appearance.get("app_name", "OQTOPUS Manager"),
