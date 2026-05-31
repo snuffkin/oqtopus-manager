@@ -34,16 +34,15 @@ def test_load_resolves_relative_paths_from_cwd(tmp_path: pathlib.Path, monkeypat
     assert cfg.environments_file == (tmp_path / "environments.yaml").resolve()
 
 
-def test_address_defaults(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_host_port_defaults(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.chdir(tmp_path)
     config_path = _write_config(tmp_path)
     cfg = AppConfig.load(config_path)
-    assert cfg.address == "127.0.0.1:8000"
     assert cfg.host == "127.0.0.1"
     assert cfg.port == 8000
 
 
-def test_address_custom(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_host_port_custom(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.chdir(tmp_path)
     config_path = tmp_path / "config.yaml"
     config_path.write_text(
@@ -52,7 +51,8 @@ def test_address_custom(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch)
                 "server": {
                     "default_environment_base_path": "./environments",
                     "environments_file": "./environments.yaml",
-                    "address": "0.0.0.0:9000",
+                    "host": "0.0.0.0",
+                    "port": 9000,
                 }
             }
         ),

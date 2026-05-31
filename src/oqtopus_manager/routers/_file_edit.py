@@ -40,7 +40,7 @@ def _check_lock(
             ).strftime("%Y-%m-%d %H:%M:%S")
             return True, token, locked_since, ts
         lock_path.unlink(missing_ok=True)
-    except (ValueError, OSError):
+    except ValueError, OSError:
         lock_path.unlink(missing_ok=True)
     return False, None, None, None
 

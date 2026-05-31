@@ -1,5 +1,14 @@
 # OQTOPUS Manager — Development Guide
 
+## Verification (run after every change)
+
+- **After code changes**: run `make verify` (= format + lint + test)
+- **After documentation changes**: run `make docs-lint`
+
+Run these automatically — do not wait to be asked.
+
+---
+
 ## Stack
 
 - **Backend**: FastAPI + Jinja2 templates
