@@ -17,6 +17,7 @@ appearance:
   app_icon_path: ./assets/favicon.svg
   favicon_path: ./assets/favicon.svg
   environment_templates:
+    - cloud-local
     - backend
   sidebar_links:
     - label: Documentation

@@ -92,7 +92,10 @@ async def new_environment_form(request: Request) -> HTMLResponse:
     return _get_templates(request).TemplateResponse(
         request,
         "environments/new.html",
-        {"default_browse_path": cfg.default_environment_base_path},
+        {
+            "default_browse_path": cfg.default_environment_base_path,
+            "default_template": "backend",
+        },
     )
 
 
@@ -217,7 +220,14 @@ def _build_list_context(environments: list[Environment], cfg: AppConfig) -> dict
             and meta.get("gateway_version")
         )
         env_items.append({"env": env, "all_installed": all_installed})
-    return {"env_items": env_items, "base_path": cfg.default_environment_base_path}
+    return {
+        "env_items": env_items,
+        "base_path": cfg.default_environment_base_path,
+        "url_prefix": "/backend",
+        "page_title": "Backend",
+        "page_description": "Manage your OQTOPUS backend environments.",
+        "has_device_status": True,
+    }
 
 
 def _components_installed(install_root: str) -> bool:
@@ -246,7 +256,11 @@ async def get_settings_partial(request: Request, name: str) -> HTMLResponse:
     return _get_templates(request).TemplateResponse(
         request,
         "environments/_settings_dl.html",
-        {"meta": meta, "resolved_root_path": resolved},
+        {
+            "meta": meta,
+            "resolved_root_path": resolved,
+            "version_keys": ["engine_version", "tranqu_version", "gateway_version"],
+        },
     )
 
 
@@ -791,6 +805,7 @@ async def get_environment(request: Request, name: str) -> HTMLResponse:
             and meta.get("tranqu_version")
             and meta.get("gateway_version")
         ),
+        "version_keys": ["engine_version", "tranqu_version", "gateway_version"],
     }
     return _get_templates(request).TemplateResponse(
         request, "environments/backend_detail.html", ctx

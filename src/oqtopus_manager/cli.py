@@ -125,21 +125,23 @@ async def stream_log_tail(
         await process.wait()
 
 
-async def stream_oqtopus_backend(
-    args: list[str], cwd: pathlib.Path
+async def stream_oqtopus_subcommand(
+    subcommand: str, args: list[str], cwd: pathlib.Path
 ) -> AsyncGenerator[str]:
-    """Run ``oqtopus backend <args>`` in *cwd*.
+    """Run ``oqtopus <subcommand> <args>`` in *cwd*.
 
     Yields:
         SSE-formatted strings for streaming to the client.
 
     """
-    async for chunk in _stream_command(["oqtopus", "backend", *args], cwd):
+    async for chunk in _stream_command(["oqtopus", subcommand, *args], cwd):
         yield chunk
 
 
-async def run_oqtopus_backend_output(args: list[str], cwd: pathlib.Path) -> str:
-    """Run ``oqtopus backend <args>`` in *cwd* and return stdout as a string.
+async def run_oqtopus_subcommand_output(
+    subcommand: str, args: list[str], cwd: pathlib.Path
+) -> str:
+    """Run ``oqtopus <subcommand> <args>`` in *cwd* and return stdout as a string.
 
     Returns:
         The command output as a decoded string, or empty string on failure.
@@ -148,7 +150,7 @@ async def run_oqtopus_backend_output(args: list[str], cwd: pathlib.Path) -> str:
     try:
         process = await asyncio.create_subprocess_exec(
             "oqtopus",
-            "backend",
+            subcommand,
             *args,
             cwd=cwd,
             stdout=asyncio.subprocess.PIPE,

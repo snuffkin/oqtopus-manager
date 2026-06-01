@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import JSONResponse, StreamingResponse
 
-from oqtopus_manager.cli import run_oqtopus_backend_output, stream_oqtopus_backend
+from oqtopus_manager.cli import run_oqtopus_subcommand_output, stream_oqtopus_subcommand
 
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator
@@ -128,7 +128,9 @@ async def component_versions_list(
         raise HTTPException(status_code=404, detail=f"Environment '{name}' not found.")
 
     cwd = env.resolved_root_path(cfg.default_environment_base_path)
-    output = await run_oqtopus_backend_output(["versions", component], cwd)
+    output = await run_oqtopus_subcommand_output(
+        "backend", ["versions", component], cwd
+    )
 
     versions = [
         m.group()
@@ -176,7 +178,7 @@ async def backend_stream(  # noqa: PLR0913, PLR0917
     logger.info("Backend stream: cmd=%s args=%s env=%s", cmd, backend_args, name)
 
     async def event_stream() -> AsyncGenerator[str]:
-        async for chunk in stream_oqtopus_backend(backend_args, cwd):
+        async for chunk in stream_oqtopus_subcommand("backend", backend_args, cwd):
             yield chunk
 
     return StreamingResponse(event_stream(), media_type="text/event-stream")

@@ -12,7 +12,14 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from oqtopus_manager.config import AppConfig
-from oqtopus_manager.routers import app_settings, backend, browse, environments
+from oqtopus_manager.routers import (
+    app_settings,
+    backend,
+    browse,
+    cloud_local,
+    cloud_local_environments,
+    environments,
+)
 
 _TEMPLATES_DIR = pathlib.Path(__file__).parent / "templates"
 
@@ -42,12 +49,17 @@ def create_app(config_path: pathlib.Path) -> FastAPI:
 
     app.include_router(backend.router)
     app.include_router(environments.router)
+    app.include_router(cloud_local.router)
+    app.include_router(cloud_local_environments.router)
     app.include_router(browse.router)
     app.include_router(app_settings.router)
 
+    first_tmpl = next(iter(cfg.environment_templates), "backend")
+    default_url = "/" + first_tmpl
+
     @app.get("/")
     async def root() -> RedirectResponse:
-        return RedirectResponse(url="/backend")
+        return RedirectResponse(url=default_url)
 
     @app.get("/app-icon")
     async def app_icon_file() -> FileResponse:

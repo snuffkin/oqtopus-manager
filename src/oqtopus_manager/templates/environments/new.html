@@ -1,24 +1,24 @@
 {% extends "base.html" %}
-{% block title %}New Environment — OQTOPUS Manager{% endblock %}
+{% block title %}New {{ default_template | replace('-', ' ') | title }} — OQTOPUS Manager{% endblock %}
 
 {% block page_banner %}
 <div class="relative overflow-hidden px-8 py-8" style="background: url('/assets/mv_bg.png') center/cover no-repeat; background-color: #2563eb;">
   {% include "_banner_svg.html" %}
   <div class="relative">
-    <a href="/backend" class="inline-flex items-center gap-1 text-blue-200 hover:text-white text-sm mb-2 transition-colors">
+    <a href="/{{ default_template }}" class="inline-flex items-center gap-1 text-blue-200 hover:text-white text-sm mb-2 transition-colors">
       <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <path d="M19 12H5M12 5l-7 7 7 7"/>
       </svg>
       Environments
     </a>
-    <h1 class="text-2xl font-bold text-white">New Environment</h1>
-    <p class="text-blue-100 text-sm mt-1">Set up a new OQTOPUS environment.</p>
+    <h1 class="text-2xl font-bold text-white">New {{ default_template | replace('-', ' ') | title }}</h1>
+    <p class="text-blue-100 text-sm mt-1">Set up a new {{ default_template | replace('-', ' ') | title }} environment.</p>
   </div>
 </div>
 {% endblock %}
 
 {% block content %}
-<div class="max-w-lg space-y-6">
+<div class="max-w-2xl space-y-6">
   <div id="form-error" class="hidden alert alert-error text-sm shadow-sm">
     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
       <circle cx="12" cy="12" r="10"/>
@@ -43,14 +43,7 @@
         </label>
       </div>
 
-      <div class="form-control w-full">
-        <label class="label pb-1" for="template">
-          <span class="label-text">Template</span>
-        </label>
-        <select id="template" name="template" required class="select select-bordered w-full">
-          <option value="backend">backend</option>
-        </select>
-      </div>
+      <input type="hidden" name="template" value="{{ default_template }}" />
 
       <div class="form-control w-full">
         <label class="label pb-1" for="root_path">
@@ -78,7 +71,7 @@
 
       <div class="flex gap-3 pt-1">
         <button id="submit-btn" type="submit" class="btn btn-primary btn-outline gap-2">Create</button>
-        <a href="/backend" class="btn btn-outline btn-error">Cancel</a>
+        <a href="/{{ default_template }}" class="btn btn-outline btn-error">Cancel</a>
       </div>
     </form>
   </div>
@@ -140,7 +133,7 @@
     }
   }
 
-  function startStream(name, template, rootPath) {
+  function startStream(name, template, rootPath, urlPrefix) {
     if (currentEs) currentEs.close();
 
     consoleArea.classList.remove("hidden");
@@ -150,7 +143,7 @@
     consoleFooter.classList.add("hidden");
 
     const params = new URLSearchParams({ name, template, root_path: rootPath });
-    currentEs = new EventSource("/backend/stream?" + params.toString());
+    currentEs = new EventSource(urlPrefix + "/stream?" + params.toString());
 
     currentEs.onmessage = function (e) {
       appendLine(e.data);
@@ -166,7 +159,7 @@
         consoleStatus.textContent = "Completed";
         consoleStatus.className = "text-xs text-green-600 font-semibold";
         consoleFooter.classList.remove("hidden");
-        consoleMessage.innerHTML = 'Completed successfully. <a href="/backend/' + encodeURIComponent(name) + '" class="btn btn-primary btn-outline btn-sm ml-2">'
+        consoleMessage.innerHTML = 'Completed successfully. <a href="' + urlPrefix + '/' + encodeURIComponent(name) + '" class="btn btn-primary btn-outline btn-sm ml-2">'
           + 'Open ' + name.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
           + '</a>';
         consoleMessage.className = "text-sm text-green-700 flex items-center";
@@ -200,7 +193,9 @@
     setLoading(true);
 
     const formData = new FormData(form);
-    const resp = await fetch("/backend", { method: "POST", body: formData });
+    const tmpl = formData.get("template");
+    const urlPrefix = "/" + tmpl;
+    const resp = await fetch(urlPrefix, { method: "POST", body: formData });
     const json = await resp.json();
 
     if (!json.ok) {
@@ -211,8 +206,9 @@
 
     startStream(
       formData.get("name"),
-      formData.get("template"),
-      formData.get("root_path") || ""
+      tmpl,
+      formData.get("root_path") || "",
+      urlPrefix
     );
   });
 })();
