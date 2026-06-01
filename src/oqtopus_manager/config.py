@@ -29,6 +29,7 @@ class AppConfig(BaseModel):
     app_icon_path: pathlib.Path | None = None
     favicon_path: pathlib.Path | None = None
     file_edit_lock_timeout_sec: int = 600
+    environment_templates: list[str] = ["backend"]
     sidebar_links: list[SidebarLink] = []
 
     @classmethod
@@ -74,6 +75,7 @@ class AppConfig(BaseModel):
                 else None
             ),
             file_edit_lock_timeout_sec=behavior.get("file_edit_lock_timeout_sec", 600),
+            environment_templates=appearance.get("environment_templates", ["backend"]),
             sidebar_links=[
                 SidebarLink(**item) for item in (appearance.get("sidebar_links") or [])
             ],

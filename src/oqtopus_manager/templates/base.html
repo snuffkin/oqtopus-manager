@@ -186,9 +186,12 @@
     <nav class="flex-1 px-2 pt-16 pb-2 space-y-0.5 overflow-y-auto">
       <p class="nav-section-label px-2.5 pb-1.5 text-xs font-semibold text-gray-400 uppercase tracking-wider">Environments</p>
 
-      <a href="/backend" title="Backend"
+      {% for tmpl in environment_templates %}
+      {% set tmpl_label = tmpl | replace('-', ' ') | title %}
+      {% set tmpl_url = '/' + tmpl %}
+      <a href="{{ tmpl_url }}" title="{{ tmpl_label }}"
          class="flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm font-medium transition-colors duration-150
-                {% if request.url.path == '/backend' or request.url.path.startswith('/backend/') %}
+                {% if request.url.path == tmpl_url or request.url.path.startswith(tmpl_url + '/') %}
                 bg-[#EFF4FF] text-[#4887FA]
                 {% else %}
                 text-gray-600 hover:bg-gray-50 hover:text-gray-900
@@ -199,8 +202,9 @@
           <line x1="6" y1="6" x2="6.01" y2="6"/>
           <line x1="6" y1="18" x2="6.01" y2="18"/>
         </svg>
-        <span class="sidebar-label">Backend</span>
+        <span class="sidebar-label">{{ tmpl_label }}</span>
       </a>
+      {% endfor %}
 
       {% if sidebar_links %}
       <p class="nav-section-label px-2.5 pb-1.5 pt-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">Links</p>

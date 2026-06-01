@@ -1,7 +1,7 @@
 # Server settings: binding address and environment data paths
 server:
   host: localhost
-  port: 8081
+  port: 38000
   default_environment_base_path: ./environments
   environments_file: ./config/environments.yaml
 
@@ -16,6 +16,8 @@ appearance:
   app_name: OQTOPUS Manager
   app_icon_path: ./assets/favicon.svg
   favicon_path: ./assets/favicon.svg
+  environment_templates:
+    - backend
   sidebar_links:
     - label: Documentation
       url: https://github.com/snuffkin/oqtopus-manager
