@@ -183,9 +183,7 @@
     <div class="flex justify-end gap-3">
       <button onclick="document.getElementById('delete-modal').classList.add('hidden')" class="btn btn-sm btn-outline">Cancel</button>
       <button
-        hx-delete="/cloud-local/{{ env.name }}"
-        hx-target="body"
-        hx-swap="innerHTML"
+        onclick="confirmDelete(this, '/cloud-local/{{ env.name }}')"
         class="btn btn-sm gap-1.5" style="background:#fff; border:1px solid #dc2626; color:#dc2626;">
         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6M10 11v6M14 11v6"/>
@@ -197,6 +195,12 @@
 </div>
 
 <script>
+function confirmDelete(btn, url) {
+  btn.disabled = true;
+  btn.innerHTML = '<span class="loading loading-spinner loading-sm"></span> Deleting…';
+  htmx.ajax('DELETE', url, { target: 'body', swap: 'innerHTML' });
+}
+
 (function () {
   document.querySelectorAll('details[data-sec]').forEach(function (el) {
     var id    = el.dataset.sec;
