@@ -57,7 +57,7 @@ All toolbar/summary-row buttons follow these rules — do not invent new variant
 Every editable file uses the same lock/edit/diff/save flow.
 
 - **JS pattern reference**: `dotenv.html` (inline functions for single editor; `makeEditor()` factory for multi-editor)
-- **Python route reference**: dotenv routes in `environments.py` — thin wrappers that call the shared helpers in the "Shared Helpers" section above
+- **Python route reference**: dotenv routes in `environments.py` — thin wrappers that call the shared helpers in the "Shared Helpers" section below
 - **Jinja2 template reference for multi-editor pages**: `service_config.html` uses the `editor_section` macro; add new editors via a macro call, not by copying HTML blocks
 
 ### Lock state rules (always enforce)
@@ -89,7 +89,7 @@ Buttons appear in this order, toggling visibility based on state:
 - **Edit section** (`#*-edit`): backdrop textarea (transparent text + absolute `<pre>` highlight behind) — hidden by default
 - **Diff section** (`#*-diff`): LCS line diff with CHANGES title + Confirm Save / Back to Edit / Cancel — hidden by default
 
-### Backend routes (per editable file)
+### Routes (per editable file)
 
 ```
 POST /{...}/force-unlock   — remove lock unconditionally
@@ -120,22 +120,31 @@ Use the `makeEditor(opts)` factory (see `service_config.html`) when a page has m
 
 Use these helpers when implementing new routes — do not re-implement inline:
 
-### `routers/environments.py`
+### `routers/_shared.py`
 
 | Helper | Purpose |
 |---|---|
+| `_get_config(request)` | Return `request.app.state.config` |
+| `_get_templates(request)` | Return `request.app.state.templates` |
 | `_get_environment_or_404(name, cfg)` | Load environment by name or raise 404 |
-| `_read_path_from_yaml(yaml_file, keys, env_root)` | Safely traverse nested YAML keys → `Path \| None` |
 
 ### `routers/_file_edit.py`
 
-| Helper | Purpose |
+| Helper / Model | Purpose |
 |---|---|
 | `_check_lock(lock_path, timeout)` | Read lock file state → `(is_locked, token, locked_since, locked_since_ts)` |
 | `_force_unlock_file(lock_path)` | Remove lock file unconditionally → `JSONResponse` |
 | `_acquire_file_lock(lock_path, timeout)` | Acquire lock → `{ok, token, acquired_ts}` or 409 |
 | `_release_file_lock(lock_path, token, timeout)` | Release lock (token required) → `{ok}` or 403 |
 | `_save_file(file_path, lock_path, content, token, timeout)` | Validate token, backup, write, release → `{ok}` or 4xx |
+| `_UnlockBody` | Pydantic request body: `{token}` |
+| `_SaveBody` | Pydantic request body: `{token, content}` |
+
+### `routers/environments.py`
+
+| Helper | Purpose |
+|---|---|
+| `_read_path_from_yaml(yaml_file, keys, env_root)` | Safely traverse nested YAML keys → `Path \| None` |
 
 Route handlers for the file-edit pattern are thin wrappers that call the shared helpers above.
 
@@ -154,27 +163,44 @@ Each template type has its own URL prefix. Routes within a template group are in
 
 ### `/backend` — Backend template
 
-| URL | Template |
+| URL | Template / Response |
 |---|---|
 | `GET /backend` | `environments/list.html` (filtered to `template=backend`) |
 | `GET /backend/new` | `environments/new.html` |
 | `GET /backend/{name}` | `environments/backend_detail.html` |
+| `GET /backend/{name}/settings-partial` | `environments/_settings_dl.html` (HTMX partial) |
 | `GET /backend/{name}/dotenv` | `environments/dotenv.html` |
 | `GET /backend/{name}/services/{service}/config` | `environments/service_config.html` |
 | `GET /backend/{name}/services/{service}/log` | `environments/service_log.html` |
-| `GET /backend/{name}/stream?cmd=...` | SSE stream (backend commands) |
+| `GET /backend/{name}/stream?cmd=...` | SSE stream |
 | `GET /backend/{name}/component-versions?component=...` | JSON version list |
+
+### `/cloud-local` — Cloud Local template
+
+| URL | Template / Response |
+|---|---|
+| `GET /cloud-local` | `environments/list.html` (filtered to `template=cloud-local`) |
+| `GET /cloud-local/new` | `environments/new.html` |
+| `GET /cloud-local/{name}` | `environments/cloud_local_detail.html` |
+| `GET /cloud-local/{name}/settings-partial` | `environments/_settings_dl.html` (HTMX partial) |
+| `GET /cloud-local/{name}/dotenv` | `environments/dotenv.html` |
+| `GET /cloud-local/{name}/services/{service}/log` | `environments/service_log.html` |
+| `GET /cloud-local/{name}/stream?cmd=...` | SSE stream |
+| `GET /cloud-local/{name}/component-versions?component=...` | JSON version list |
+
+### Other routes
+
+| URL | Template / Response |
+|---|---|
 | `GET /settings` | `app_settings.html` |
 | `GET /browse` | `browse/_picker.html` |
 
 ### Template Implementation Status
 
-| `template` value | URL prefix | Detail template | Status |
-|---|---|---|---|
-| `backend` | `/backend` | `environments/backend_detail.html` | Implemented |
-| (future) | `/cloud-local` etc. | TBD | Not yet |
-
-To add a new template type, use `/new-template <name>`.
+| `template` value | URL prefix | Detail template | Version keys | Status |
+|---|---|---|---|---|
+| `backend` | `/backend` | `environments/backend_detail.html` | `engine_version`, `tranqu_version`, `gateway_version` | Implemented |
+| `cloud-local` | `/cloud-local` | `environments/cloud_local_detail.html` | `cloud_version`, `frontend_version`, `admin_version` | Implemented |
 
 ---
 
@@ -182,27 +208,47 @@ To add a new template type, use `/new-template <name>`.
 
 | File | URL prefix | Purpose |
 |---|---|---|
+| `routers/_shared.py` | — | Shared helpers: `_get_config`, `_get_templates`, `_get_environment_or_404` |
+| `routers/_file_edit.py` | — | Shared file-edit helpers + `_UnlockBody` / `_SaveBody` models |
 | `routers/environments.py` | `/backend` | Environment CRUD, dotenv, service config/log, lock routes (backend template) |
 | `routers/backend.py` | `/backend` | SSE backend commands, component versions JSON |
+| `routers/cloud_local_environments.py` | `/cloud-local` | Environment CRUD, dotenv, service log, lock routes (cloud-local template) |
+| `routers/cloud_local.py` | `/cloud-local` | SSE cloud-local commands, component versions JSON |
 | `routers/app_settings.py` | `/settings` | App settings page |
 | `routers/browse.py` | `/browse` | File/directory browser |
 
-Each template type gets its own router pair (environments + backend equivalent). The `list_environments` route filters by `template` value so each prefix only shows its own environments.
+Each template type gets its own router pair (environments + SSE equivalent). The `list_environments` route filters by `template` value so each prefix only shows its own environments.
+
+To add a new template type: create a router pair, add the URL prefix to `environment_templates` in `config.yaml`, and register the routers in `main.py`.
 
 ---
 
 ## Environment Directory Structure
 
+### Backend (`template=backend`)
+
 ```
-{env.root_path}/          # default: {default_environment_base_path}/{name}/
+{env_root}/
   .env                    # environment variables (editable via dotenv page)
-  .metadata               # JSON: engine_version, tranqu_version, gateway_version
+  .metadata               # key=value: engine_version, tranqu_version, gateway_version
   config/
     {service}/
       config.yaml         # service config (editable via service_config page)
       logging.yaml        # logging config (editable via service_config page)
   logs/
-    {service}.log         # service log (viewable via service_log page)
+    {service}.log         # service log
+```
+
+### Cloud Local (`template=cloud-local`)
+
+```
+{env_root}/
+  .env                    # environment variables (editable via dotenv page)
+  .metadata               # key=value: cloud_local_cloud_version, cloud_local_frontend_version,
+                          #            cloud_local_admin_version  (prefix stripped on read)
+  logs/
+    {service}/
+      service.log         # service log (path differs from backend)
 ```
 
 Lock files are stored alongside the target file as `{filename}.lock`.
@@ -215,8 +261,19 @@ Backup files are stored as `{filename}.{yyyymmddhhmmss}`.
 ```python
 class Environment(BaseModel):
     name: str          # validated: ^[a-z0-9][a-z0-9_.:-]*$
-    template: str      # e.g. "backend"
+    template: str      # e.g. "backend", "cloud-local"
     root_path: pathlib.Path | None = None  # None → base_path / name
 ```
 
 `env.resolved_root_path(base_path)` returns the effective root path.
+
+### `config.yaml` — `environment_templates`
+
+Controls which template types appear in the sidebar and the default redirect target:
+
+```yaml
+appearance:
+  environment_templates:
+    - cloud-local   # first entry = default redirect from /
+    - backend
+```
