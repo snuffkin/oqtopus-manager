@@ -10,6 +10,7 @@ import uuid
 from typing import TYPE_CHECKING
 
 from fastapi.responses import JSONResponse
+from pydantic import BaseModel
 
 if TYPE_CHECKING:
     import pathlib
@@ -125,3 +126,12 @@ def _save_file(
     lock_path.unlink(missing_ok=True)
     logger.info("Saved: %s", file_path)
     return JSONResponse({"ok": True})
+
+
+class _UnlockBody(BaseModel):
+    token: str
+
+
+class _SaveBody(BaseModel):
+    token: str
+    content: str

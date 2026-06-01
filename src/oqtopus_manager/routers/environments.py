@@ -15,7 +15,7 @@ from fastapi.responses import (
     JSONResponse,
     StreamingResponse,
 )
-from pydantic import BaseModel, ValidationError
+from pydantic import ValidationError
 
 from oqtopus_manager.cli import stream_log_tail, stream_oqtopus_init
 from oqtopus_manager.models.environment import Environment
@@ -25,41 +25,22 @@ from oqtopus_manager.routers._file_edit import (
     _force_unlock_file,
     _release_file_lock,
     _save_file,
+    _SaveBody,
+    _UnlockBody,
+)
+from oqtopus_manager.routers._shared import (
+    _get_config,
+    _get_environment_or_404,
+    _get_templates,
 )
 
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator
 
-    from fastapi.templating import Jinja2Templates
-
     from oqtopus_manager.config import AppConfig
 
 router = APIRouter(prefix="/backend", tags=["backend"])
 logger = logging.getLogger(__name__)
-
-
-def _get_templates(request: Request) -> Jinja2Templates:
-    return request.app.state.templates
-
-
-def _get_config(request: Request) -> AppConfig:
-    return request.app.state.config
-
-
-def _get_environment_or_404(name: str, cfg: AppConfig) -> Environment:
-    """Return the named environment, raising 404 if not found.
-
-    Returns:
-        The matching Environment.
-
-    Raises:
-        HTTPException: If the environment is not found.
-
-    """
-    env = next((e for e in cfg.load_environments() if e.name == name), None)
-    if env is None:
-        raise HTTPException(status_code=404, detail=f"Environment '{name}' not found.")
-    return env
 
 
 @router.get("", response_class=HTMLResponse)
@@ -435,15 +416,6 @@ async def service_log_download(
         filename=log_file.name,
         media_type="text/plain",
     )
-
-
-class _UnlockBody(BaseModel):
-    token: str
-
-
-class _SaveBody(BaseModel):
-    token: str
-    content: str
 
 
 def _config_which_to_filename(which: str) -> str:

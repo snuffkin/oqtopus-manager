@@ -10,6 +10,7 @@ from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import JSONResponse, StreamingResponse
 
 from oqtopus_manager.cli import run_oqtopus_subcommand_output, stream_oqtopus_subcommand
+from oqtopus_manager.routers._shared import _get_config, _get_environment_or_404
 
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator
@@ -121,11 +122,8 @@ async def component_versions_list(
     if component not in _VALID_COMPONENTS:
         raise HTTPException(status_code=400, detail=f"Invalid component '{component}'")
 
-    cfg = request.app.state.config
-    environments = cfg.load_environments()
-    env = next((e for e in environments if e.name == name), None)
-    if env is None:
-        raise HTTPException(status_code=404, detail=f"Environment '{name}' not found.")
+    cfg = _get_config(request)
+    env = _get_environment_or_404(name, cfg)
 
     cwd = env.resolved_root_path(cfg.default_environment_base_path)
     output = await run_oqtopus_subcommand_output(
@@ -161,11 +159,8 @@ async def backend_stream(  # noqa: PLR0913, PLR0917
         HTTPException: If the environment is not found or command arguments are invalid.
 
     """
-    cfg = request.app.state.config
-    environments = cfg.load_environments()
-    env = next((e for e in environments if e.name == name), None)
-    if env is None:
-        raise HTTPException(status_code=404, detail=f"Environment '{name}' not found.")
+    cfg = _get_config(request)
+    env = _get_environment_or_404(name, cfg)
 
     try:
         backend_args = _build_args(
