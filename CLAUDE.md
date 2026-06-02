@@ -9,6 +9,18 @@ Run these automatically — do not wait to be asked.
 
 ---
 
+## Code Comments
+
+Add a short English inline comment whenever the **why** is non-obvious: hidden constraints, subtle invariants, workarounds, or logic that would surprise a reader. One line max. Do not explain what the code does — only why.
+
+Examples of comment-worthy blocks:
+- A fallback value chosen for a non-obvious reason (`# Default to epoch 0 so missing timestamps are always stale`)
+- A guard against a race condition or edge case
+- A design decision that affects behavior (`# Persist absolute path so the entry is cwd-independent`)
+- A non-obvious API behavior (`# relative_to() raises ValueError when path is outside base`)
+
+---
+
 ## Stack
 
 - **Backend**: FastAPI + Jinja2 templates

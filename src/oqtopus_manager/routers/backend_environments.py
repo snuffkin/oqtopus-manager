@@ -156,8 +156,10 @@ async def stream_environment_init(
 
         if success:
             environments = cfg.load_environments()
+            # Guard against duplicate entries if config was modified concurrently
             if not any(e.name == name for e in environments):
                 resolved = new_env.resolved_root_path(cfg.default_environment_base_path)
+                # Persist absolute path so the entry is cwd-independent
                 env_to_save = new_env.model_copy(update={"root_path": resolved})
                 environments.append(env_to_save)
                 cfg.save_environments(environments)
@@ -195,6 +197,7 @@ def _build_list_context(environments: list[Environment], cfg: AppConfig) -> dict
     for env in environments:
         resolved = env.resolved_root_path(cfg.default_environment_base_path)
         meta = _read_metadata(resolved)
+        # All three service versions must be present for the env to be fully installed
         all_installed = bool(
             meta.get("engine_version")
             and meta.get("tranqu_version")
@@ -310,6 +313,7 @@ def _read_path_from_yaml(
         if not value:
             return None
         path = pathlib.Path(str(value))
+        # Resolve relative paths against env_root rather than the process cwd
         return path if path.is_absolute() else env_root / path
     except KeyError, TypeError, AttributeError:
         return None

@@ -34,6 +34,7 @@ def _check_lock(
     try:
         parts = lock_path.read_text(encoding="utf-8").strip().split("\n", 1)
         token = parts[0]
+        # Default to epoch 0 so a missing timestamp is always treated as stale
         ts = float(parts[1]) if len(parts) > 1 else 0.0
         if time.time() - ts < timeout:
             locked_since = datetime.datetime.fromtimestamp(
@@ -42,6 +43,7 @@ def _check_lock(
             return True, token, locked_since, ts
         lock_path.unlink(missing_ok=True)
     except ValueError, OSError:
+        # Remove corrupted lock files that cannot be parsed
         lock_path.unlink(missing_ok=True)
     return False, None, None, None
 
@@ -76,7 +78,7 @@ def _acquire_file_lock(lock_path: pathlib.Path, timeout: int) -> JSONResponse:
             status_code=409,
         )
     ts = time.time()
-    token = str(uuid.uuid4())
+    token = str(uuid.uuid4())  # 128-bit random; uuid4 avoids MAC-address/time leakage
     lock_path.write_text(f"{token}\n{ts}", encoding="utf-8")
     return JSONResponse({"ok": True, "token": token, "acquired_ts": ts})
 
@@ -118,6 +120,7 @@ def _save_file(
     if stored_token != token:
         return JSONResponse({"ok": False, "error": "Invalid token."}, status_code=403)
     if file_path.exists():
+        # Timestamped backup so every save is recoverable without external VCS
         backup_ts = datetime.datetime.now(tz=datetime.UTC).strftime("%Y%m%d%H%M%S")
         backup_path = file_path.parent / f"{file_path.name}.{backup_ts}"
         shutil.copy2(file_path, backup_path)

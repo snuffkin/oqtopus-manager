@@ -58,6 +58,7 @@ def _read_metadata(env_root: pathlib.Path) -> dict[str, str]:
     for line in path.read_text(encoding="utf-8").splitlines():
         if "=" in line:
             key, _, value = line.partition("=")
+            # Strip prefix so keys match cloud_version/frontend_version/admin_version
             result[key.strip().removeprefix("cloud_local_")] = value.strip()
     return result
 

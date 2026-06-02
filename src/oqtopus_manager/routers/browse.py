@@ -26,6 +26,7 @@ async def browse(request: Request, path: str = "") -> HTMLResponse:
     current = pathlib.Path(path).resolve() if path else base  # noqa: ASYNC240
 
     try:
+        # relative_to() raises ValueError when current is outside base
         current.relative_to(base)
     except ValueError:
         current = base
@@ -41,6 +42,7 @@ async def browse(request: Request, path: str = "") -> HTMLResponse:
     except PermissionError, FileNotFoundError:
         entries = []
 
+    # Hide the parent link at base so users cannot navigate above it
     parent = current.parent if current != base else None
 
     return request.app.state.templates.TemplateResponse(

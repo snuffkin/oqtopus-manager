@@ -30,6 +30,7 @@ async def _run_quick(argv: list[str]) -> str:
         )
         stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=5)
         out = stdout.decode(errors="replace").strip()
+        # Prefer stdout; fall back to stderr for commands that only write errors
         return out or stderr.decode(errors="replace").strip()
     except FileNotFoundError:
         return "command not found"
@@ -56,6 +57,7 @@ async def settings_page(request: Request) -> HTMLResponse:
 
     logging_path = cfg.config_path.parent / "logging.yaml"
     environments_path = cfg.environments_file
+    # which() returns None if the command is not in PATH
     oqtopus_path = shutil.which("oqtopus") or "not found"
     raw_version = await _run_quick(["oqtopus", "version"])
     oqtopus_version = raw_version.removeprefix("oqtopus ").strip()
