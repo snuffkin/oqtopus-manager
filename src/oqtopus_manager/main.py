@@ -1,6 +1,7 @@
 """FastAPI application factory and entry point."""
 
 import argparse
+import importlib.metadata
 import pathlib
 
 import uvicorn
@@ -47,7 +48,10 @@ def create_app(config_path: pathlib.Path) -> FastAPI:
         raise ValueError(msg)
 
     # Initialize FastAPI and attach config/templates to app state
-    app = FastAPI(title=cfg.app_name)
+    app = FastAPI(
+        title=cfg.app_name,
+        version=importlib.metadata.version("oqtopus-manager"),
+    )
     app.state.config = cfg
     templates = Jinja2Templates(directory=_TEMPLATES_DIR)
     templates.env.globals["app_name"] = cfg.app_name
