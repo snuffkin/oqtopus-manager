@@ -14,10 +14,10 @@ from oqtopus_manager.config import AppConfig
 from oqtopus_manager.routers import (
     app_settings,
     backend,
+    backend_environments,
     browse,
     cloud_local,
     cloud_local_environments,
-    environments,
 )
 
 _TEMPLATES_DIR = pathlib.Path(__file__).parent / "templates"
@@ -47,7 +47,7 @@ def create_app(config_path: pathlib.Path) -> FastAPI:
     app.mount("/assets", StaticFiles(directory=assets_dir), name="assets")
 
     app.include_router(backend.router)
-    app.include_router(environments.router)
+    app.include_router(backend_environments.router)
     app.include_router(cloud_local.router)
     app.include_router(cloud_local_environments.router)
     app.include_router(browse.router)

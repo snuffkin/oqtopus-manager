@@ -39,7 +39,7 @@ def mock_stream_success(mocker: MockerFixture) -> None:
         yield "data: Initializing...\n\n"
         yield "event: done\ndata: success\n\n"
 
-    mocker.patch("oqtopus_manager.routers.environments.stream_oqtopus_init", side_effect=_gen)
+    mocker.patch("oqtopus_manager.routers.backend_environments.stream_oqtopus_init", side_effect=_gen)
 
 
 @pytest.fixture
@@ -49,7 +49,7 @@ def mock_stream_failure(mocker: MockerFixture) -> None:
         yield "data: Error: template not found\n\n"
         yield "event: done\ndata: error\n\n"
 
-    mocker.patch("oqtopus_manager.routers.environments.stream_oqtopus_init", side_effect=_gen)
+    mocker.patch("oqtopus_manager.routers.backend_environments.stream_oqtopus_init", side_effect=_gen)
 
 
 def test_root_redirects_to_backend(client: TestClient) -> None:

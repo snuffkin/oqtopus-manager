@@ -140,7 +140,7 @@ Use these helpers when implementing new routes — do not re-implement inline:
 | `_UnlockBody` | Pydantic request body: `{token}` |
 | `_SaveBody` | Pydantic request body: `{token, content}` |
 
-### `routers/environments.py`
+### `routers/backend_environments.py`
 
 | Helper | Purpose |
 |---|---|
@@ -210,7 +210,7 @@ Each template type has its own URL prefix. Routes within a template group are in
 |---|---|---|
 | `routers/_shared.py` | — | Shared helpers: `_get_config`, `_get_templates`, `_get_environment_or_404` |
 | `routers/_file_edit.py` | — | Shared file-edit helpers + `_UnlockBody` / `_SaveBody` models |
-| `routers/environments.py` | `/backend` | Environment CRUD, dotenv, service config/log, lock routes (backend template) |
+| `routers/backend_environments.py` | `/backend` | Environment CRUD, dotenv, service config/log, lock routes (backend template) |
 | `routers/backend.py` | `/backend` | SSE backend commands, component versions JSON |
 | `routers/cloud_local_environments.py` | `/cloud-local` | Environment CRUD, dotenv, service log, lock routes (cloud-local template) |
 | `routers/cloud_local.py` | `/cloud-local` | SSE cloud-local commands, component versions JSON |

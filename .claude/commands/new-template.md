@@ -7,6 +7,7 @@ Scaffold a new environment template type.
 `$ARGUMENTS`: template name (lowercase, matches `env.template` value)
 
 Example:
+
 ```
 /new-template simulator
 ```
@@ -15,7 +16,7 @@ Example:
 
 ### 1. Add to the dispatch table
 
-In `src/oqtopus_manager/routers/environments.py`, add the new template to `_DETAIL_TEMPLATE`:
+In `src/oqtopus_manager/routers/backend_environments.py`, add the new template to `_DETAIL_TEMPLATE`:
 
 ```python
 _DETAIL_TEMPLATE: dict[str, str] = {
@@ -35,6 +36,7 @@ Create `src/oqtopus_manager/templates/environments/<name>_detail.html`.
 Start from the skeleton in `detail.html` (which shows name / template / root path). Extend it with sections appropriate to the new template type.
 
 Follow all CLAUDE.md conventions:
+
 - Page banner: same blue gradient as `backend_detail.html`
 - Card sections: `<details>` with `data-sec` attribute, same shadow/border style
 - Button styles: follow the conventions table exactly
