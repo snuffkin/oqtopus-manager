@@ -209,7 +209,7 @@
     <div class="flex justify-end gap-3">
       <button onclick="document.getElementById('delete-modal').classList.add('hidden')" class="btn btn-sm btn-outline">Cancel</button>
       <button
-        onclick="confirmDelete(this, '/backend/{{ env.name }}')"
+        onclick="confirmDelete(this, '/backend/' + envName)"
         class="btn btn-sm gap-1.5" style="background:#fff; border:1px solid #dc2626; color:#dc2626;">
         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6M10 11v6M14 11v6"/>
@@ -226,6 +226,8 @@ function confirmDelete(btn, url) {
   btn.innerHTML = '<span class="loading loading-spinner loading-sm"></span> Deleting…';
   htmx.ajax('DELETE', url, { target: 'body', swap: 'innerHTML' });
 }
+
+var envName = {{ env.name | tojson }};
 
 (function () {
   document.querySelectorAll('details[data-sec]').forEach(function (el) {
@@ -293,7 +295,7 @@ function confirmDelete(btn, url) {
   }
 
   function refreshSettings() {
-    fetch('/backend/{{ env.name }}/settings-partial')
+    fetch('/backend/' + envName + '/settings-partial')
       .then(function (r) { return r.text(); })
       .then(function (html) {
         var dl = document.getElementById('settings-dl');
@@ -344,11 +346,11 @@ function confirmDelete(btn, url) {
 
   window.runCmd = function (cmd, extra, label, btn) {
     var params = new URLSearchParams(Object.assign({ cmd: cmd }, extra));
-    startStream('/backend/{{ env.name }}/stream?' + params, label, btn);
+    startStream('/backend/' + envName + '/stream?' + params, label, btn);
   };
   window.runServiceCmdFor = function (action, svc, btn) {
     var params = new URLSearchParams({ cmd: action, service: svc });
-    startStream('/backend/{{ env.name }}/stream?' + params, action + ' ' + svc, btn,
+    startStream('/backend/' + envName + '/stream?' + params, action + ' ' + svc, btn,
       function () { window.fetchStatus(null); });
   };
   window.runComponentCmd = function (action, btn) {
@@ -359,7 +361,7 @@ function confirmDelete(btn, url) {
     var needsRefresh = (action === 'install' || action === 'update' || action === 'uninstall');
     var compBtnIds = ['btn-versions', 'btn-install', 'btn-uninstall'];
     compBtnIds.forEach(function (id) { var b = document.getElementById(id); if (b) b.disabled = true; });
-    startStream('/backend/{{ env.name }}/stream?' + params,
+    startStream('/backend/' + envName + '/stream?' + params,
       action + ' ' + comp + (ver ? ' ' + ver : ''), btn,
       needsRefresh ? refreshSettings : null,
       function () {
@@ -374,8 +376,8 @@ function confirmDelete(btn, url) {
     var comp = document.getElementById('comp').value;
     if (!_VALID_COMP.has(comp)) return;
     var params = new URLSearchParams({ cmd: 'versions', component: comp });
-    startStream('/backend/{{ env.name }}/stream?' + params, 'versions ' + comp, btn);
-    fetch('/backend/{{ env.name }}/component-versions?component=' + encodeURIComponent(comp))
+    startStream('/backend/' + envName + '/stream?' + params, 'versions ' + comp, btn);
+    fetch('/backend/' + envName + '/component-versions?component=' + encodeURIComponent(comp))
       .then(function (r) { return r.json(); })
       .then(function (data) {
         var wrap = document.getElementById('ver-wrap');
@@ -432,8 +434,8 @@ function confirmDelete(btn, url) {
         '<button onclick="runServiceCmdFor(\'restart\',this.dataset.svc,this)" data-svc="' + svcEsc + '" class="btn btn-xs btn-outline' + (stopped ? ' btn-disabled' : '') + '" style="width:6rem"' + (stopped ? ' disabled' : '') + '>Restart</button>' +
         '</div></td>' +
         '<td class="py-1.5 pl-3 pr-5" style="width:1px; white-space:nowrap"><div class="flex gap-1">' +
-        '<a href="/backend/{{ env.name }}/services/' + encodeURIComponent(row.svc) + '/config" class="btn btn-xs btn-outline" style="width:4rem">Config</a>' +
-        '<a href="/backend/{{ env.name }}/services/' + encodeURIComponent(row.svc) + '/log" class="btn btn-xs btn-outline">Log</a>' +
+        '<a href="/backend/' + envName + '/services/' + encodeURIComponent(row.svc) + '/config" class="btn btn-xs btn-outline" style="width:4rem">Config</a>' +
+        '<a href="/backend/' + envName + '/services/' + encodeURIComponent(row.svc) + '/log" class="btn btn-xs btn-outline">Log</a>' +
         '</div></td>' +
         '</tr>';
     });
@@ -447,7 +449,7 @@ function confirmDelete(btn, url) {
     var wrap = document.getElementById('status-table-wrap');
     if (wrap) wrap.innerHTML = '<tr><td colspan="4" class="px-5 py-2 text-sm text-gray-400">Loading…</td></tr>';
     var lines = [];
-    var es = new EventSource('/backend/{{ env.name }}/stream?cmd=status');
+    var es = new EventSource('/backend/' + envName + '/stream?cmd=status');
     es.onmessage = function (e) { if (e.data.trim()) lines.push(e.data.trim()); };
     es.addEventListener('done', function () {
       es.close();
@@ -502,7 +504,7 @@ function confirmDelete(btn, url) {
     var wrap = document.getElementById('device-status-wrap');
     if (wrap) wrap.innerHTML = '<p class="text-sm text-gray-400 px-5 py-2">Loading…</p>';
     var lines = [];
-    var es = new EventSource('/backend/{{ env.name }}/stream?cmd=device-status-show');
+    var es = new EventSource('/backend/' + envName + '/stream?cmd=device-status-show');
     es.onmessage = function (e) { if (e.data.trim()) lines.push(e.data.trim()); };
     es.addEventListener('done', function () {
       es.close();
@@ -520,7 +522,7 @@ function confirmDelete(btn, url) {
 
   window.setDeviceStatus = function (status, btn) {
     var params = new URLSearchParams({ cmd: 'device-status-set', status: status });
-    startStream('/backend/{{ env.name }}/stream?' + params, 'device-status ' + status, btn,
+    startStream('/backend/' + envName + '/stream?' + params, 'device-status ' + status, btn,
       function () { window.fetchDeviceStatus(null); });
   };
 

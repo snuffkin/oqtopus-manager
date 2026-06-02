@@ -57,7 +57,7 @@
         <td id="service-{{ env.name }}" class="text-sm"></td>
         <td class="text-right">
           <button
-            onclick="openDeleteModal('{{ env.name }}')"
+            onclick="openDeleteModal({{ env.name | tojson }})"
             class="btn btn-error btn-sm btn-outline gap-1.5">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6M10 11v6M14 11v6"/>

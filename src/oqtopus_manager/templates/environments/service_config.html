@@ -203,6 +203,9 @@
 {% include "environments/_modals.html" %}
 
 <script>
+  var envName     = {{ env.name | tojson }};
+  var serviceName = {{ service | tojson }};
+
   function downloadCode(codeId, filename) {
     var el = document.getElementById(codeId);
     var text = el ? el.textContent : '';
@@ -448,7 +451,7 @@
   var cfgEditor = makeEditor({
     rawContent: {{ config_content | tojson }},
     lockTimeoutSec: {{ lock_timeout_sec }},
-    baseUrl: '/backend/{{ env.name }}/services/{{ service }}/config/config',
+    baseUrl: '/backend/' + envName + '/services/' + serviceName + '/config/config',
     detailsId: 'details-cfg',
     viewId: 'cfg-view',    editId: 'cfg-edit',    diffId: 'cfg-diff',
     editPreId: 'cfg-edit-pre', editTaId: 'cfg-edit-ta', diffOutId: 'cfg-diff-out',
@@ -466,7 +469,7 @@
   var logEditor = makeEditor({
     rawContent: {{ logging_content | tojson }},
     lockTimeoutSec: {{ lock_timeout_sec }},
-    baseUrl: '/backend/{{ env.name }}/services/{{ service }}/config/logging',
+    baseUrl: '/backend/' + envName + '/services/' + serviceName + '/config/logging',
     detailsId: 'details-log',
     viewId: 'log-view',    editId: 'log-edit',    diffId: 'log-diff',
     editPreId: 'log-edit-pre', editTaId: 'log-edit-ta', diffOutId: 'log-diff-out',
@@ -485,7 +488,7 @@
     rawContent: {{ topology_content | tojson }},
     lockTimeoutSec: {{ lock_timeout_sec }},
     language: 'json',
-    baseUrl: '/backend/{{ env.name }}/gateway/topology-json',
+    baseUrl: '/backend/' + envName + '/gateway/topology-json',
     detailsId: 'details-topo',
     viewId: 'topo-view',    editId: 'topo-edit',    diffId: 'topo-diff',
     editPreId: 'topo-edit-pre', editTaId: 'topo-edit-ta', diffOutId: 'topo-diff-out',

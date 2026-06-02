@@ -125,6 +125,8 @@
 </div>
 
 <script>
+  var envName     = {{ env.name | tojson }};
+  var serviceName = {{ service | tojson }};
   var MAX_LINES = {{ buffer_lines }};
   var lineCount = 0;
   var es = null;
@@ -203,7 +205,7 @@
 
   function connectLog() {
     if (es) es.close();
-    es = new EventSource('/backend/{{ env.name }}/services/{{ service }}/log/stream');
+    es = new EventSource('/backend/' + envName + '/services/' + serviceName + '/log/stream');
     setStatus(true);
 
     es.onmessage = function (e) {
