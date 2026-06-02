@@ -3,6 +3,7 @@
 import pathlib
 
 import yaml
+from oqtopus_util.config import load_config
 from pydantic import BaseModel
 
 from oqtopus_manager.models.environment import Environment
@@ -44,8 +45,7 @@ class AppConfig(BaseModel):
             The loaded AppConfig instance.
 
         """
-        with config_path.open(encoding="utf-8") as f:
-            raw = yaml.safe_load(f)
+        raw = load_config(str(config_path))
 
         cwd = pathlib.Path.cwd()
         server = raw.get("server", {})
@@ -92,8 +92,7 @@ class AppConfig(BaseModel):
         """
         if not self.environments_file.exists():
             return []
-        with self.environments_file.open(encoding="utf-8") as f:
-            raw = yaml.safe_load(f) or {}
+        raw = load_config(str(self.environments_file)) or {}
         return [Environment(**e) for e in raw.get("environments", [])]
 
     def save_environments(self, environments: list[Environment]) -> None:

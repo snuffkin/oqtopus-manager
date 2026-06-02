@@ -21,6 +21,7 @@ requires-python = ">=3.14,<4.0"
 dependencies = [
   "fastapi>=0.136.1",
   "jinja2>=3.1.6",
+  "oqtopus-util>=1.0.0",
   "python-json-logger>=4.1.0",
   "python-multipart>=0.0.29",
   "pyyaml>=6.0.3",
@@ -34,7 +35,6 @@ repository = "https://github.com/oqtopus-team/oqtopus-manager"
 [dependency-groups]
 dev = [
   "mypy>=2.1.0",
-  "pre-commit>=4.6.0",
   "ruff>=0.15.13",
   "types-pyyaml>=6.0.12.20260518",
 ]
@@ -63,9 +63,6 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/oqtopus_manager"]
-
-[tool.uv]
-exclude-newer = "1 week"
 
 [tool.ruff]
 preview = true

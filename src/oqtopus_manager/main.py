@@ -1,15 +1,14 @@
 """FastAPI application factory and entry point."""
 
 import argparse
-import logging.config
 import pathlib
 
 import uvicorn
-import yaml
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from oqtopus_util.config import load_config, setup_logging
 
 from oqtopus_manager.config import AppConfig
 from oqtopus_manager.routers import (
@@ -93,9 +92,8 @@ def _parse_args() -> argparse.Namespace:
 if __name__ == "__main__":
     args = _parse_args()
 
-    with pathlib.Path(args.logging).open(encoding="utf-8") as f:
-        log_config_dict = yaml.safe_load(f)
-    logging.config.dictConfig(log_config_dict)
+    log_config_dict = load_config(args.logging)
+    setup_logging(log_config_dict)
 
     cfg_path = pathlib.Path(args.config)
     app = create_app(cfg_path)
