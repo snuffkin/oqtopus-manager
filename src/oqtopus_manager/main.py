@@ -74,12 +74,22 @@ def create_app(config_path: pathlib.Path) -> FastAPI:
     app.include_router(app_settings.router)
 
     # Redirect / to the first configured template
-    first_tmpl = cfg.environment_templates[0]
-    default_url = "/" + first_tmpl
+    default_url = "/" + cfg.environment_templates[0]
+    _register_routes(app, default_url)
+
+    return app
+
+
+def _register_routes(app: FastAPI, default_url: str) -> None:
+    """Register app-level routes (redirect, version, assets, docs)."""
 
     @app.get("/")
     async def root() -> RedirectResponse:
         return RedirectResponse(url=default_url)
+
+    @app.get("/version")
+    async def version() -> dict[str, str]:
+        return {"version": app.version}
 
     # Serve app icon and favicon from operator-configured paths
     @app.get("/app-icon")
@@ -99,8 +109,6 @@ def create_app(config_path: pathlib.Path) -> FastAPI:
     @app.get("/api-docs", response_class=HTMLResponse)
     async def api_docs_page(request: Request) -> HTMLResponse:
         return app.state.templates.TemplateResponse(request, "api_docs.html", {})
-
-    return app
 
 
 def _parse_args() -> argparse.Namespace:
