@@ -9,8 +9,19 @@
 
 ## Overview
 
-**OQTOPUS Manager** is a local/on-prem management application for OQTOPUS backend environments.
-It allows operators to manage multiple OQTOPUS backend environments running on a single host.
+**OQTOPUS Manager** is a local/on-prem management application for the OQTOPUS ecosystem.
+It allows operators to manage multiple OQTOPUS environments running on a single host.
+
+## Quick Start
+
+```bash
+git clone https://github.com/snuffkin/oqtopus-manager.git
+cd oqtopus-manager
+make install
+make run
+```
+
+Open [http://localhost:38000/](http://localhost:38000/) in your browser.
 
 ## Features
 
