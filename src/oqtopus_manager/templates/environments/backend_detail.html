@@ -91,9 +91,14 @@
           </label>
         </div>
         <div class="flex flex-col">
-          <div class="flex gap-1">
+          <div class="flex gap-1 items-center">
             <button id="btn-versions"  onclick="fetchVersions(this)"              class="btn btn-sm btn-outline" disabled>Versions</button>
             <button id="btn-install"   onclick="runComponentCmd('install', this)"   class="btn btn-sm btn-outline btn-success">Install</button>
+            <label id="chk-skip-wrap" style="display:none" class="inline-flex items-center gap-1 text-xs text-gray-500 px-1 cursor-pointer">
+              <input type="checkbox" id="chk-skip-sse-build" class="checkbox checkbox-xs">
+              <span>skip SSE build</span>
+              <span class="text-gray-400">(install only)</span>
+            </label>
             <button id="btn-uninstall" onclick="runComponentCmd('uninstall', this)" class="btn btn-sm btn-outline btn-error">Uninstall</button>
           </div>
           <label class="label py-0"><span class="label-text-alt">&nbsp;</span></label>
@@ -240,7 +245,8 @@ var envName = {{ env.name | tojson }};
   });
 
   function syncCompState() {
-    var isAll = document.getElementById('comp').value === 'all';
+    var comp  = document.getElementById('comp').value;
+    var isAll = comp === 'all';
     var ver   = document.getElementById('ver');
     ['btn-versions', 'btn-update', 'btn-uninstall'].forEach(function (btnId) {
       var b = document.getElementById(btnId);
@@ -248,6 +254,10 @@ var envName = {{ env.name | tojson }};
     });
     ver.value    = isAll ? '' : ver.value;
     ver.disabled = isAll;
+    var skipWrap = document.getElementById('chk-skip-wrap');
+    var isEngine = comp === 'engine';
+    skipWrap.style.display = isEngine ? 'inline-flex' : 'none';
+    if (!isEngine) document.getElementById('chk-skip-sse-build').checked = false;
   }
   document.getElementById('comp').addEventListener('change', syncCompState);
   syncCompState();
@@ -356,13 +366,17 @@ var envName = {{ env.name | tojson }};
   window.runComponentCmd = function (action, btn) {
     var comp = document.getElementById('comp').value;
     var ver  = document.getElementById('ver').value.trim();
+    var skipSseBuild = action === 'install' && comp === 'engine'
+      && document.getElementById('chk-skip-sse-build').checked;
     var params = new URLSearchParams({ cmd: action, component: comp });
     if (ver) params.set('version', ver);
+    if (skipSseBuild) params.set('skip_sse_build', 'true');
+    var label = action + ' ' + comp + (ver ? ' ' + ver : '') + (skipSseBuild ? ' --skip-sse-build' : '');
     var needsRefresh = (action === 'install' || action === 'update' || action === 'uninstall');
     var compBtnIds = ['btn-versions', 'btn-install', 'btn-uninstall'];
     compBtnIds.forEach(function (id) { var b = document.getElementById(id); if (b) b.disabled = true; });
     startStream('/backend/' + envName + '/stream?' + params,
-      action + ' ' + comp + (ver ? ' ' + ver : ''), btn,
+      label, btn,
       needsRefresh ? refreshSettings : null,
       function () {
         compBtnIds.forEach(function (id) { var b = document.getElementById(id); if (b) b.disabled = false; });

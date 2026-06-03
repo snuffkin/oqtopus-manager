@@ -1,6 +1,21 @@
 {% extends "base.html" %}
 {% block title %}New {{ default_template | replace('-', ' ') | title }} — OQTOPUS Manager{% endblock %}
 
+{% block extra_head %}
+<style>
+  #console-area.is-fullscreen {
+    position: fixed; inset: 0; z-index: 50; padding: 0; margin: 0;
+  }
+  #console-area.is-fullscreen > div {
+    height: 100%; display: flex; flex-direction: column;
+    border-radius: 0; overflow: hidden;
+  }
+  #console-area.is-fullscreen #terminal {
+    flex: 1; height: auto !important;
+  }
+</style>
+{% endblock %}
+
 {% block page_banner %}
 <div class="relative overflow-hidden px-8 py-8" style="background: url('/assets/mv_bg.png') center/cover no-repeat; background-color: #2563eb;">
   {% include "_banner_svg.html" %}
@@ -76,17 +91,32 @@
     </form>
   </div>
 
-  <div id="console-area" class="hidden">
-    <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-      <div class="flex items-center justify-between px-4 py-3 bg-gray-50 border-b border-gray-200">
-        <h2 class="text-sm font-semibold text-gray-700">Output</h2>
-        <span id="console-status" class="text-xs text-gray-400">Running…</span>
+</div>
+
+<div id="console-area" class="hidden mt-6">
+  <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+    <div class="flex items-center justify-between px-4 py-3 bg-gray-50 border-b border-gray-200">
+      <div class="flex items-center gap-2 min-w-0">
+        <h2 class="text-sm font-semibold text-[#4887FA] flex-shrink-0">Output</h2>
+        <code id="console-cmd" class="text-xs text-gray-400 font-mono truncate"></code>
       </div>
-      <div id="terminal"
-           class="font-mono text-sm bg-gray-950 text-green-400 p-4 h-64 overflow-y-auto whitespace-pre-wrap leading-relaxed"></div>
-      <div id="console-footer" class="hidden px-4 py-3 bg-gray-50 border-t border-gray-200">
-        <div id="console-message" class="text-sm"></div>
+      <div class="flex items-center gap-2 flex-shrink-0 ml-4">
+        <span id="console-status" class="text-xs text-gray-400"></span>
+        <button onclick="toggleFullscreen()" class="btn btn-ghost btn-xs text-gray-400" title="Fullscreen">
+          <svg id="icon-expand" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>
+          </svg>
+          <svg id="icon-collapse" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3"/>
+          </svg>
+        </button>
+        <button onclick="clearConsole()" class="btn btn-ghost btn-xs text-gray-400">Clear</button>
       </div>
+    </div>
+    <div id="terminal"
+         class="font-mono text-sm bg-gray-950 text-green-400 p-4 h-64 overflow-y-auto whitespace-pre-wrap leading-relaxed"></div>
+    <div id="console-footer" class="hidden px-4 py-3 bg-gray-50 border-t border-gray-200">
+      <div id="console-message" class="text-sm"></div>
     </div>
   </div>
 </div>
@@ -99,6 +129,7 @@
   const formErrorText = document.getElementById("form-error-text");
   const consoleArea = document.getElementById("console-area");
   const terminal = document.getElementById("terminal");
+  const consoleCmd = document.getElementById("console-cmd");
   const consoleStatus = document.getElementById("console-status");
   const consoleFooter = document.getElementById("console-footer");
   const consoleMessage = document.getElementById("console-message");
@@ -133,14 +164,27 @@
     }
   }
 
+  window.toggleFullscreen = function () {
+    var isFs = consoleArea.classList.toggle("is-fullscreen");
+    document.getElementById("icon-expand").classList.toggle("hidden", isFs);
+    document.getElementById("icon-collapse").classList.toggle("hidden", !isFs);
+  };
+
+  window.clearConsole = function () {
+    terminal.textContent = "";
+    consoleArea.classList.add("hidden");
+  };
+
   function startStream(name, template, rootPath, urlPrefix) {
     if (currentEs) currentEs.close();
 
     consoleArea.classList.remove("hidden");
     terminal.textContent = "";
+    consoleCmd.textContent = "oqtopus init " + name + " --template " + template;
     consoleStatus.textContent = "Running…";
     consoleStatus.className = "text-xs text-gray-400";
     consoleFooter.classList.add("hidden");
+    consoleArea.scrollIntoView({ behavior: "smooth", block: "nearest" });
 
     const params = new URLSearchParams({ name, template, root_path: rootPath });
     currentEs = new EventSource(urlPrefix + "/stream?" + params.toString());
@@ -156,8 +200,8 @@
       if (e.data === "success") {
         appendLine("");
         appendLine("✓ Done.");
-        consoleStatus.textContent = "Completed";
-        consoleStatus.className = "text-xs text-green-600 font-semibold";
+        consoleStatus.textContent = "Done";
+        consoleStatus.className = "text-xs font-semibold text-green-600";
         consoleFooter.classList.remove("hidden");
         consoleMessage.innerHTML = 'Completed successfully. <a href="' + urlPrefix + '/' + encodeURIComponent(name) + '" class="btn btn-primary btn-outline btn-sm ml-2">'
           + 'Open ' + name.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
