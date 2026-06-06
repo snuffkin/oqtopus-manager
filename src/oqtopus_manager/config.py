@@ -38,6 +38,7 @@ class AppConfig(BaseModel):
     environment_templates: list[str] = ["backend"]
     sidebar_links: list[SidebarLink] = []
     auth: AuthConfig = AuthConfig()
+    debug: bool = False
 
     @classmethod
     def load(cls, config_path: pathlib.Path) -> AppConfig:
@@ -65,6 +66,7 @@ class AppConfig(BaseModel):
             header=HeaderProviderConfig(
                 user_header=header_raw.get("user_header", "x-forwarded-email"),
                 roles_header=header_raw.get("roles_header", "x-forwarded-groups"),
+                allow_raw_roles=header_raw.get("allow_raw_roles") or [],
                 signature_verification=(
                     SignatureVerificationConfig(**sig_ver_raw) if sig_ver_raw else None
                 ),
@@ -101,6 +103,7 @@ class AppConfig(BaseModel):
                 SidebarLink(**item) for item in (appearance.get("sidebar_links") or [])
             ],
             auth=auth,
+            debug=bool(raw.get("debug", False)),
         )
 
     def load_environments(self) -> list[Environment]:

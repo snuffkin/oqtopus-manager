@@ -7,14 +7,14 @@ from typing import TYPE_CHECKING, override
 from fastapi.responses import HTMLResponse, Response
 from starlette.middleware.base import BaseHTTPMiddleware
 
-from ._providers import AuthenticationError, build_provider
+from .providers import AuthenticationError, build_provider
 
 if TYPE_CHECKING:
     from fastapi import Request
     from starlette.middleware.base import RequestResponseEndpoint
     from starlette.types import ASGIApp
 
-    from ._config import AuthConfig
+    from .config import AuthConfig
 
 
 class AuthMiddleware(BaseHTTPMiddleware):

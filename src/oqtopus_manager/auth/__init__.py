@@ -1,8 +1,8 @@
 """Authentication package: providers, middleware, and configuration models."""
 
-from ._config import AuthConfig, HeaderProviderConfig, SignatureVerificationConfig
-from ._middleware import AuthMiddleware
-from ._providers import AuthenticationError, AuthProvider, AuthUser
+from .config import AuthConfig, HeaderProviderConfig, SignatureVerificationConfig
+from .middleware import AuthMiddleware
+from .providers import AuthenticationError, AuthProvider, AuthUser, build_provider
 
 __all__ = [
     "AuthConfig",
@@ -12,4 +12,5 @@ __all__ = [
     "AuthenticationError",
     "HeaderProviderConfig",
     "SignatureVerificationConfig",
+    "build_provider",
 ]

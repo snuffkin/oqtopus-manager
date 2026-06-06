@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import fnmatch
 import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
@@ -13,7 +14,7 @@ from jwt import PyJWKClient
 if TYPE_CHECKING:
     from fastapi import Request
 
-    from ._config import AuthConfig, SignatureVerificationConfig
+    from .config import AuthConfig, SignatureVerificationConfig
 
 # One PyJWKClient per issuer URL; kept alive for JWKS key caching across requests
 _jwks_clients: dict[str, PyJWKClient] = {}
@@ -113,10 +114,22 @@ class HeaderAuthProvider(AuthProvider):
         raw_groups_str = request.headers.get(hdr.roles_header, "")
         raw_groups = [g.strip() for g in raw_groups_str.split(",") if g.strip()]
 
-        roles = [cfg.role_mappings[g] for g in raw_groups if g in cfg.role_mappings]
-        if not roles:
-            msg = "no matching role"
+        # Discard values not matching any allow_raw_roles pattern before mapping
+        if hdr.allow_raw_roles:
+            allowed = [
+                g
+                for g in raw_groups
+                if any(fnmatch.fnmatch(g, pat) for pat in hdr.allow_raw_roles)
+            ]
+        else:
+            allowed = raw_groups
+
+        if not allowed:
+            msg = "no allowed role"
             raise AuthenticationError(msg)
+
+        # Map to display name; fall back to the raw group name if unmapped
+        roles = [cfg.role_mappings.get(g, g) for g in allowed]
 
         sig = hdr.signature_verification
         if sig and sig.enabled:

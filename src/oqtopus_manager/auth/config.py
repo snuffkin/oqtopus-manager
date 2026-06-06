@@ -19,6 +19,8 @@ class HeaderProviderConfig(BaseModel):
 
     user_header: str = "x-forwarded-email"
     roles_header: str = "x-forwarded-groups"
+    # glob patterns on raw roles_header values, applied before role_mappings
+    allow_raw_roles: list[str] = []  # empty = allow all
     signature_verification: SignatureVerificationConfig | None = None
     signout_url: str | None = None
 
