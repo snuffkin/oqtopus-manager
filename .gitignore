@@ -166,6 +166,7 @@ cython_debug/
 
 # OQTOPUS Manager temporary files
 logs/*.log
+config/config.yaml
 config/environments.yaml
 /environments/
 

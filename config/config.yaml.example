@@ -11,21 +11,6 @@ behavior:
   log_buffer_lines: 1000
   file_edit_lock_timeout_sec: 600
 
-# Authentication settings: provider "none" disables auth, "header" reads from proxy headers
-auth:
-  provider: none
-  # provider: header
-  # user_header: x-forwarded-email
-  # roles_header: x-forwarded-groups
-  # signature_verification:
-  #   enabled: false
-  #   header: authorization
-  #   issuer: https://your-issuer-url/
-  #   audience: your-client-id
-  role_mappings:
-    oqtopus-manager.operator: operator
-    oqtopus-manager.admin: admin
-
 # Appearance settings: app branding and sidebar links
 appearance:
   app_name: OQTOPUS Manager
@@ -45,3 +30,20 @@ appearance:
       url: https://your-monitoring-url/
     - label: QDash
       url: https://your-qdash-url/
+
+# Authentication settings: provider "none" disables auth, "header" reads from proxy headers
+auth:
+  provider: none
+  # provider: header
+  # header:
+  #   user_header: x-forwarded-email
+  #   roles_header: x-forwarded-groups
+  #   # signout_url: https://your-signout-url/
+  #   signature_verification:
+  #     enabled: false
+  #     header: authorization
+  #     issuer: https://your-issuer-url/
+  #     audience: your-audience
+  # role_mappings:
+  #   your-app.operator: operator
+  #   your-app.admin: admin

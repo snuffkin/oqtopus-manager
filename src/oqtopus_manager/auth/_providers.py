@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, override
@@ -17,14 +18,21 @@ if TYPE_CHECKING:
 # One PyJWKClient per issuer URL; kept alive for JWKS key caching across requests
 _jwks_clients: dict[str, PyJWKClient] = {}
 
+logger = logging.getLogger(__name__)
+
 
 @dataclass
 class AuthUser:
     """Authenticated user extracted from request headers."""
 
     email: str
-    role: str
+    roles: list[str] = field(default_factory=list)
     raw_groups: list[str] = field(default_factory=list)
+
+    @property
+    def role(self) -> str:
+        """Return the primary role for backward-compatible single-role display."""
+        return self.roles[0] if self.roles else ""
 
 
 class AuthenticationError(Exception):
@@ -100,19 +108,17 @@ class HeaderAuthProvider(AuthProvider):
 
         """
         cfg = self._cfg
-        email = request.headers.get(cfg.user_header, "")
-        raw_groups_str = request.headers.get(cfg.roles_header, "")
+        hdr = cfg.header
+        email = request.headers.get(hdr.user_header, "")
+        raw_groups_str = request.headers.get(hdr.roles_header, "")
         raw_groups = [g.strip() for g in raw_groups_str.split(",") if g.strip()]
 
-        role = next(
-            (cfg.role_mappings[g] for g in raw_groups if g in cfg.role_mappings),
-            None,
-        )
-        if role is None:
+        roles = [cfg.role_mappings[g] for g in raw_groups if g in cfg.role_mappings]
+        if not roles:
             msg = "no matching role"
             raise AuthenticationError(msg)
 
-        sig = cfg.signature_verification
+        sig = hdr.signature_verification
         if sig and sig.enabled:
             auth_header = request.headers.get(sig.header, "")
             if not auth_header.lower().startswith("bearer "):
@@ -121,11 +127,12 @@ class HeaderAuthProvider(AuthProvider):
             token = auth_header[len("bearer ") :]
             try:
                 _verify_jwt(token, sig)
-            except Exception:  # noqa: BLE001
+            except Exception as exc:  # noqa: BLE001
+                logger.warning("JWT verification failed: %s", exc)
                 msg = "invalid JWT"
                 raise AuthenticationError(msg) from None  # hide internal JWT details
 
-        return AuthUser(email=email, role=role, raw_groups=raw_groups)
+        return AuthUser(email=email, roles=roles, raw_groups=raw_groups)
 
 
 def build_provider(cfg: AuthConfig) -> AuthProvider:

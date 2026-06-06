@@ -9,6 +9,10 @@ install: ## Install dependencies, commit template and OQtopus CLI
 	@if [ -d .git ]; then \
 		git config --local commit.template .gitmessage; \
 	fi
+	@if [ ! -f config/config.yaml ]; then \
+		cp config/config.yaml.example config/config.yaml; \
+		echo "Created config/config.yaml from config/config.yaml.example"; \
+	fi
 	@curl -LsSf https://raw.githubusercontent.com/oqtopus-team/oqtopus-cli/main/scripts/install.sh | sh
 
 run: ## Run the application

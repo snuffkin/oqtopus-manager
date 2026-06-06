@@ -6,7 +6,11 @@ import yaml
 from oqtopus_util.config import load_config
 from pydantic import BaseModel
 
-from oqtopus_manager.auth import AuthConfig, SignatureVerificationConfig
+from oqtopus_manager.auth import (
+    AuthConfig,
+    HeaderProviderConfig,
+    SignatureVerificationConfig,
+)
 from oqtopus_manager.models.environment import Environment
 
 
@@ -54,13 +58,17 @@ class AppConfig(BaseModel):
         behavior = raw.get("behavior", {})
         appearance = raw.get("appearance", {})
         auth_raw = raw.get("auth", {})
-        sig_ver_raw = auth_raw.get("signature_verification")
+        header_raw = auth_raw.get("header") or {}
+        sig_ver_raw = header_raw.get("signature_verification")
         auth = AuthConfig(
             provider=auth_raw.get("provider", "none"),
-            user_header=auth_raw.get("user_header", "x-forwarded-email"),
-            roles_header=auth_raw.get("roles_header", "x-forwarded-groups"),
-            signature_verification=(
-                SignatureVerificationConfig(**sig_ver_raw) if sig_ver_raw else None
+            header=HeaderProviderConfig(
+                user_header=header_raw.get("user_header", "x-forwarded-email"),
+                roles_header=header_raw.get("roles_header", "x-forwarded-groups"),
+                signature_verification=(
+                    SignatureVerificationConfig(**sig_ver_raw) if sig_ver_raw else None
+                ),
+                signout_url=header_raw.get("signout_url"),
             ),
             role_mappings=auth_raw.get("role_mappings") or {},
         )
