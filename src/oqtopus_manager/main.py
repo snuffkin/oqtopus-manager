@@ -1,7 +1,10 @@
 """FastAPI application factory and entry point."""
 
 import argparse
+import base64
+import html
 import importlib.metadata
+import json
 import pathlib
 
 import uvicorn
@@ -11,6 +14,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from oqtopus_util.config import load_config, setup_logging
 
+from oqtopus_manager.auth import AuthMiddleware
 from oqtopus_manager.config import AppConfig
 from oqtopus_manager.routers import (
     app_settings,
@@ -19,6 +23,7 @@ from oqtopus_manager.routers import (
     browse,
     cloud_local,
     cloud_local_environments,
+    me,
 )
 
 # Jinja2 templates directory bundled with the package
@@ -29,6 +34,26 @@ _TEMPLATE_ROUTERS = {
     "backend": [backend.router, backend_environments.router],
     "cloud-local": [cloud_local.router, cloud_local_environments.router],
 }
+
+_JWT_PARTS_MIN = 2
+
+
+def _decode_jwt_without_verification(token: str) -> dict:
+    parts = token.split(".")
+    if len(parts) < _JWT_PARTS_MIN:
+        return {"error": "Invalid JWT format"}
+
+    header_b64, payload_b64 = parts[0], parts[1]
+
+    def decode_part(value: str) -> dict:
+        padded = value + "=" * (-len(value) % 4)
+        raw = base64.urlsafe_b64decode(padded)
+        return json.loads(raw)
+
+    return {
+        "header": decode_part(header_b64),
+        "payload": decode_part(payload_b64),
+    }
 
 
 def create_app(config_path: pathlib.Path) -> FastAPI:
@@ -52,6 +77,7 @@ def create_app(config_path: pathlib.Path) -> FastAPI:
         title=cfg.app_name,
         version=importlib.metadata.version("oqtopus-manager"),
     )
+    app.add_middleware(AuthMiddleware, auth_cfg=cfg.auth)
     app.state.config = cfg
     templates = Jinja2Templates(directory=_TEMPLATES_DIR)
     templates.env.globals["app_name"] = cfg.app_name
@@ -72,6 +98,7 @@ def create_app(config_path: pathlib.Path) -> FastAPI:
             app.include_router(router)
     app.include_router(browse.router)
     app.include_router(app_settings.router)
+    app.include_router(me.router)
 
     # Redirect / to the first configured template
     default_url = "/" + cfg.environment_templates[0]
@@ -80,7 +107,7 @@ def create_app(config_path: pathlib.Path) -> FastAPI:
     return app
 
 
-def _register_routes(app: FastAPI, default_url: str) -> None:
+def _register_routes(app: FastAPI, default_url: str) -> None:  # noqa: C901
     """Register app-level routes (redirect, version, assets, docs)."""
 
     @app.get("/")
@@ -109,6 +136,42 @@ def _register_routes(app: FastAPI, default_url: str) -> None:
     @app.get("/api-docs", response_class=HTMLResponse)
     async def api_docs_page(request: Request) -> HTMLResponse:
         return app.state.templates.TemplateResponse(request, "api_docs.html", {})
+
+    @app.get("/debug", response_class=HTMLResponse)
+    def debug_headers(request: Request) -> str:
+        rows = "\n".join(
+            f"<tr><th>{html.escape(key)}</th><td><code>{html.escape(value)}</code></td></tr>"
+            for key, value in sorted(request.headers.items())
+        )
+
+        jwt_result: dict = {}
+        auth = request.headers.get("authorization")
+        if auth and auth.lower().startswith("bearer "):
+            token = auth[len("bearer ") :]
+            try:
+                jwt_result = _decode_jwt_without_verification(token)
+            except Exception as e:  # noqa: BLE001
+                jwt_result = {"error": str(e)}
+
+        return f"""
+        <!doctype html>
+        <html>
+        <head>
+            <meta charset="utf-8">
+            <title>Header Debug</title>
+        </head>
+        <body>
+            <h1>Header Debug</h1>
+            <table border="1" cellpadding="8">
+            <tbody>
+                {rows}
+            </tbody>
+            </table>
+            <h1>JWT Debug</h1>
+            <pre>{html.escape(json.dumps(jwt_result, indent=2))}</pre>
+        </body>
+        </html>
+        """
 
 
 def _parse_args() -> argparse.Namespace:

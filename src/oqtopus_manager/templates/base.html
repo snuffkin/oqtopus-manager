@@ -249,6 +249,27 @@
         <span class="sidebar-label">Settings</span>
       </a>
     </nav>
+    {% if request.state.user %}
+    <div class="border-t border-gray-100 px-2 py-2 flex-shrink-0">
+      <a href="/me" title="My Account"
+         class="flex items-center gap-2.5 px-2.5 py-2 rounded-lg transition-colors duration-150 min-w-0
+                {% if request.url.path == '/me' %}bg-[#EFF4FF]{% else %}hover:bg-gray-50{% endif %}">
+        <div class="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 text-xs font-semibold
+          {% if request.state.user.role == 'admin' %}bg-amber-100 text-amber-700
+          {% elif request.state.user.role == 'operator' %}bg-blue-100 text-blue-600
+          {% else %}bg-gray-100 text-gray-600{% endif %}">
+          {{ request.state.user.email[0] | upper }}
+        </div>
+        <div class="sidebar-label min-w-0">
+          <p class="text-xs font-medium text-gray-900 truncate leading-tight">{{ request.state.user.email }}</p>
+          <p class="text-xs leading-tight mt-0.5
+            {% if request.state.user.role == 'admin' %}text-amber-600
+            {% elif request.state.user.role == 'operator' %}text-blue-500
+            {% else %}text-gray-400{% endif %}">{{ request.state.user.role }}</p>
+        </div>
+      </a>
+    </div>
+    {% endif %}
   </aside>
 
   <!-- Main area (offset for sidebar) -->

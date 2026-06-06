@@ -6,6 +6,7 @@ import yaml
 from oqtopus_util.config import load_config
 from pydantic import BaseModel
 
+from oqtopus_manager.auth import AuthConfig, SignatureVerificationConfig
 from oqtopus_manager.models.environment import Environment
 
 
@@ -32,6 +33,7 @@ class AppConfig(BaseModel):
     file_edit_lock_timeout_sec: int = 600
     environment_templates: list[str] = ["backend"]
     sidebar_links: list[SidebarLink] = []
+    auth: AuthConfig = AuthConfig()
 
     @classmethod
     def load(cls, config_path: pathlib.Path) -> AppConfig:
@@ -51,6 +53,17 @@ class AppConfig(BaseModel):
         server = raw.get("server", {})
         behavior = raw.get("behavior", {})
         appearance = raw.get("appearance", {})
+        auth_raw = raw.get("auth", {})
+        sig_ver_raw = auth_raw.get("signature_verification")
+        auth = AuthConfig(
+            provider=auth_raw.get("provider", "none"),
+            user_header=auth_raw.get("user_header", "x-forwarded-email"),
+            roles_header=auth_raw.get("roles_header", "x-forwarded-groups"),
+            signature_verification=(
+                SignatureVerificationConfig(**sig_ver_raw) if sig_ver_raw else None
+            ),
+            role_mappings=auth_raw.get("role_mappings") or {},
+        )
 
         default_base = cwd / pathlib.Path(server["default_environment_base_path"])
         environments_file = cwd / pathlib.Path(server["environments_file"])
@@ -79,6 +92,7 @@ class AppConfig(BaseModel):
             sidebar_links=[
                 SidebarLink(**item) for item in (appearance.get("sidebar_links") or [])
             ],
+            auth=auth,
         )
 
     def load_environments(self) -> list[Environment]:
