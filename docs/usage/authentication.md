@@ -2,16 +2,12 @@
 
 OQTOPUS Manager supports pluggable authentication providers configured under the `auth` key in `config.yaml`.
 
----
-
 ## Provider overview
 
 | `provider` | Description |
 |------------|-------------|
 | `none` | Authentication is disabled. All requests are allowed without a user identity. Suitable for local development only. |
 | `header` | Reads user identity from HTTP headers injected by a trusted reverse proxy (e.g. AWS ALB + Amazon Cognito via oauth2-proxy). |
-
----
 
 ## provider: none
 
@@ -22,8 +18,6 @@ auth:
 
 No additional configuration is required.
 `request.state.user` is `None` for every request, and the **My Account** page is hidden from the sidebar.
-
----
 
 ## provider: header
 
@@ -40,12 +34,12 @@ auth:
     roles_header: x-forwarded-groups
     allow_raw_roles:
       - oqtopus-manager.*
-    signout_url: https://your-proxy/oauth2/sign_out
     signature_verification:
       enabled: true
       header: authorization
       issuer: https://your-issuer-url/
       audience: your-audience
+    signout_url: https://your-proxy/oauth2/sign_out
   role_mappings:
     your-app.operator: operator
     your-app.admin: admin
@@ -58,7 +52,6 @@ auth:
 | `user_header` | string | No | `x-forwarded-email` | Request header containing the authenticated user's email address. |
 | `roles_header` | string | No | `x-forwarded-groups` | Request header containing a comma-separated list of raw role/group values set by the proxy. |
 | `allow_raw_roles` | list of strings | No | *(allow all)* | Glob patterns (shell-style, using `fnmatch`) applied to each raw value from `roles_header` **before** `role_mappings`. Values that do not match any pattern are discarded. When omitted or empty, all values are allowed through. See [allow_raw_roles](#allow_raw_roles) for details. |
-| `signout_url` | string | No | — | URL the **Sign out** sidebar link points to. When omitted, the Sign out link is hidden. Typically the oauth2-proxy sign-out endpoint. |
 
 ### header.signature_verification.*
 
@@ -74,31 +67,11 @@ JWT signature verification prevents header spoofing: even if a client forges the
 !!! warning "Token expiry"
     The proxy must refresh tokens before they expire. When using oauth2-proxy, set `cookie_refresh` to a value shorter than the identity provider's token lifetime (e.g. `cookie_refresh = "50m"` for a 60-minute token). If the token expires before refresh, requests will be rejected with `JWT verification failed: Signature has expired`.
 
-### role_mappings
+### header.signout_url
 
-Maps raw values from `roles_header` (after `allow_raw_roles` filtering) to display names used throughout the UI.
-
-```yaml
-role_mappings:
-  your-app.operator: operator
-  your-app.admin: admin
-```
-
-| Behaviour | Description |
-|-----------|-------------|
-| Mapped value | Displayed as the mapped name (e.g. `admin`, `operator`). |
-| Unmapped value | Passed through as-is (the raw string). |
-| No match at all | The request is rejected with `403 Forbidden`. |
-
-Role display colours in the UI:
-
-| Role name | Colour |
-|-----------|--------|
-| `admin` | Amber |
-| `operator` | Blue |
-| anything else | Grey |
-
----
+| Key | Type | Required | Default | Description |
+|-----|------|----------|---------|-------------|
+| `signout_url` | string | No | — | URL the **Sign out** sidebar link points to. When omitted, the Sign out link is hidden. Typically the oauth2-proxy sign-out endpoint. |
 
 ## allow_raw_roles
 
@@ -125,7 +98,45 @@ allow_raw_roles:
 | `oqtopus-manager.operator` | ✓ |
 | `other-app.admin` | ✗ (discarded before role_mappings) |
 
----
+## role_mappings
+
+Maps raw role values to display names used throughout the UI.
+Applies regardless of which provider is configured.
+
+```yaml
+auth:
+  role_mappings:
+    your-app.operator: operator
+    your-app.admin: admin
+```
+
+| Behaviour | Description |
+|-----------|-------------|
+| Mapped value | Displayed as the mapped name (e.g. `admin`, `operator`). |
+| Unmapped value | Passed through as-is (the raw string). |
+| No match at all | The request is rejected with `403 Forbidden`. |
+
+Role display colours in the UI:
+
+| Role name | Colour |
+|-----------|--------|
+| `admin` | Amber |
+| `operator` | Blue |
+| anything else | Grey |
+
+## Debug endpoint
+
+The `/debug` page shows all request headers, the decoded JWT payload, and the mapped roles.
+It is intended for verifying that a reverse proxy is injecting the expected headers.
+
+```yaml
+auth:
+  enable_debug_endpoint: true   # default: false
+```
+
+!!! warning
+    `/debug` exposes authentication tokens and user identity in plain text.
+    Never enable it in production.
 
 ## Example: Amazon Cognito with oauth2-proxy
 
@@ -199,12 +210,12 @@ auth:
     roles_header: x-forwarded-groups
     allow_raw_roles:
       - oqtopus-manager.*          # discard groups from other applications
-    signout_url: "http://localhost:4180/oauth2/sign_out?rd={cognito-login-url}"
     signature_verification:
       enabled: true                # verify the JWT to prevent header spoofing
       header: authorization
       issuer: "https://cognito-idp.{region}.amazonaws.com/{user-pool-id}"
       audience: "{app-client-id}"
+    signout_url: "http://localhost:4180/oauth2/sign_out?rd={cognito-login-url}"
   role_mappings:
     oqtopus-manager.operator: operator
     oqtopus-manager.admin: admin

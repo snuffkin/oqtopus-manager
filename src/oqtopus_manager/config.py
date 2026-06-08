@@ -38,7 +38,6 @@ class AppConfig(BaseModel):
     environment_templates: list[str] = ["backend"]
     sidebar_links: list[SidebarLink] = []
     auth: AuthConfig = AuthConfig()
-    debug: bool = False
 
     @classmethod
     def load(cls, config_path: pathlib.Path) -> AppConfig:
@@ -73,6 +72,7 @@ class AppConfig(BaseModel):
                 signout_url=header_raw.get("signout_url"),
             ),
             role_mappings=auth_raw.get("role_mappings") or {},
+            enable_debug_endpoint=bool(auth_raw.get("enable_debug_endpoint", False)),
         )
 
         default_base = cwd / pathlib.Path(server["default_environment_base_path"])
@@ -103,7 +103,6 @@ class AppConfig(BaseModel):
                 SidebarLink(**item) for item in (appearance.get("sidebar_links") or [])
             ],
             auth=auth,
-            debug=bool(raw.get("debug", False)),
         )
 
     def load_environments(self) -> list[Environment]:

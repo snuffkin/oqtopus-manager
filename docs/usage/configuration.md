@@ -84,24 +84,6 @@ appearance:
 
 ---
 
-## debug
-
-Enables the `/debug` route, which displays request headers and decoded JWT payload.
-
-```yaml
-# debug: true   # default: false (omit to disable)
-```
-
-| Key | Type | Required | Default | Description |
-|-----|------|----------|---------|-------------|
-| `debug` | boolean | No | `false` | When `true`, the `/debug` page is available. **Never enable in production.** |
-
-!!! warning
-    The `/debug` route exposes all request headers, including authentication tokens.
-    Only enable it in trusted, development environments.
-
----
-
 ## auth
 
 Authentication configuration. See [Authentication](authentication.md) for the full reference and provider-specific examples.
@@ -114,3 +96,8 @@ auth:
 | Key | Type | Required | Default | Description |
 |-----|------|----------|---------|-------------|
 | `provider` | string | No | `none` | Authentication provider. `none` disables auth; `header` reads identity from HTTP headers set by a reverse proxy. |
+| `enable_debug_endpoint` | boolean | No | `false` | When `true`, the `/debug` page is available. **Never enable in production.** |
+
+!!! warning
+    `enable_debug_endpoint: true` exposes all request headers, including authentication tokens.
+    Only enable it in trusted, development environments.

@@ -31,3 +31,4 @@ class AuthConfig(BaseModel):
     provider: str = "none"
     header: HeaderProviderConfig = HeaderProviderConfig()
     role_mappings: dict[str, str] = {}
+    enable_debug_endpoint: bool = False

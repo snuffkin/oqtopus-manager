@@ -31,9 +31,6 @@ appearance:
     - label: QDash
       url: https://your-qdash-url/
 
-# Debug settings: enables /debug route for inspecting request headers and JWT
-# debug: true
-
 # Authentication settings: provider "none" disables auth, "header" reads from proxy headers
 auth:
   provider: none
@@ -41,15 +38,15 @@ auth:
   # header:
   #   user_header: x-forwarded-email
   #   roles_header: x-forwarded-groups
-  #   # allow_raw_roles:        # glob patterns on raw roles_header values, applied
-  #   #   - your-app.*          # before role_mappings; omit to allow all
-  #   # signout_url: https://your-signout-url/
+  #   allow_raw_roles:        # glob patterns on raw roles_header values, applied
+  #     - your-app.*          # before role_mappings; omit to allow all
   #   signature_verification:  # verify JWT from the proxy to prevent header spoofing
-  #     enabled: false         # set true to enable; requires pyjwt[crypto]
+  #     enabled: false         # set true to enable
   #     header: authorization  # request header containing "Bearer <token>"
   #     issuer: https://your-issuer-url/   # e.g. Cognito user pool URL
   #     audience: your-audience            # e.g. Cognito App client ID
-  #   # cookie_refresh on the proxy must be shorter than the token expiry
+  #   # signout_url: https://your-signout-url/
   # role_mappings:             # raw roles_header value → display name; unmapped values pass through as-is
   #   your-app.operator: operator
   #   your-app.admin: admin
+  # enable_debug_endpoint: true  # exposes /debug (headers + JWT). Never enable in production.
