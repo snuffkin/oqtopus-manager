@@ -36,17 +36,18 @@ auth:
   provider: none
   # provider: header
   # header:
-  #   user_header: x-forwarded-email
-  #   roles_header: x-forwarded-groups
-  #   allow_raw_roles:        # glob patterns on raw roles_header values, applied
-  #     - your-app.*          # before role_mappings; omit to allow all
-  #   signature_verification:  # verify JWT from the proxy to prevent header spoofing
-  #     enabled: false         # set true to enable
-  #     header: authorization  # request header containing "Bearer <token>"
-  #     issuer: https://your-issuer-url/   # e.g. Cognito user pool URL
-  #     audience: your-audience            # e.g. Cognito App client ID
+  #   jwt_header: authorization        # "authorization" → Bearer prefix stripped automatically
+  #   user_claim: email                # JWT claim for the user's email
+  #   roles_claim: "cognito:groups"    # JWT claim for roles; list = nested path
+  #   #   e.g. Cloudflare: ["custom", "cognito:groups"]
+  #   allow_raw_roles:                 # glob patterns on raw roles_claim values, applied
+  #     - your-app.*                   # before role_mappings; omit to allow all
+  #   signature_verification:          # verify JWT signature to prevent token forgery
+  #     enabled: false                 # set true to enable; issuer and audience required
+  #     issuer: https://your-issuer-url/        # e.g. Cognito user pool URL
+  #     # jwks_url: https://your-jwks-url/      # omit to derive from issuer automatically
+  #     audience: your-audience                 # e.g. Cognito App client ID
   #   # signout_url: https://your-signout-url/
-  # role_mappings:             # raw roles_header value → display name; unmapped values pass through as-is
+  # role_mappings:                     # raw roles_claim value → display name; unmapped values pass through as-is
   #   your-app.operator: operator
   #   your-app.admin: admin
-  # enable_debug_endpoint: true  # exposes /debug (headers + JWT). Never enable in production.

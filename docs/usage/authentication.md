@@ -7,7 +7,7 @@ OQTOPUS Manager supports pluggable authentication providers configured under the
 | `provider` | Description |
 |------------|-------------|
 | `none` | Authentication is disabled. All requests are allowed without a user identity. Suitable for local development only. |
-| `header` | Reads user identity from HTTP headers injected by a trusted reverse proxy (e.g. AWS ALB + Amazon Cognito via oauth2-proxy). |
+| `header` | Extracts user identity from a JWT carried in an HTTP header injected by a trusted reverse proxy (e.g. AWS ALB + Amazon Cognito via oauth2-proxy, or Cloudflare Access). |
 
 ## provider: none
 
@@ -21,8 +21,9 @@ No additional configuration is required.
 
 ## provider: header
 
-Trusts HTTP headers set by a reverse proxy that sits in front of OQTOPUS Manager.
-The proxy is responsible for authenticating the user and injecting the identity headers before forwarding the request.
+Trusts a JWT delivered in an HTTP header set by a reverse proxy that sits in front of OQTOPUS Manager.
+The proxy is responsible for authenticating the user and injecting the JWT before forwarding the request.
+OQTOPUS Manager decodes the JWT to read the user's email and roles directly from claims.
 
 ### Full configuration reference
 
@@ -30,14 +31,15 @@ The proxy is responsible for authenticating the user and injecting the identity 
 auth:
   provider: header
   header:
-    user_header: x-forwarded-email
-    roles_header: x-forwarded-groups
-    allow_raw_roles:
-      - oqtopus-manager.*
+    jwt_header: authorization          # "authorization" → Bearer prefix stripped automatically
+    user_claim: email                  # JWT claim for the user's email
+    roles_claim: "cognito:groups"      # JWT claim for roles; list = nested path
+    allow_raw_roles:                   # glob patterns on raw roles_claim values, applied
+      - your-app.*                     # before role_mappings; omit to allow all
     signature_verification:
       enabled: true
-      header: authorization
       issuer: https://your-issuer-url/
+      # jwks_url: https://your-jwks-url/   # omit to derive from issuer automatically
       audience: your-audience
     signout_url: https://your-proxy/oauth2/sign_out
   role_mappings:
@@ -49,29 +51,25 @@ auth:
 
 | Key | Type | Required | Default | Description |
 |-----|------|----------|---------|-------------|
-| `user_header` | string | No | `x-forwarded-email` | Request header containing the authenticated user's email address. |
-| `roles_header` | string | No | `x-forwarded-groups` | Request header containing a comma-separated list of raw role/group values set by the proxy. |
-| `allow_raw_roles` | list of strings | No | *(allow all)* | Glob patterns (shell-style, using `fnmatch`) applied to each raw value from `roles_header` **before** `role_mappings`. Values that do not match any pattern are discarded. When omitted or empty, all values are allowed through. See [allow_raw_roles](#allow_raw_roles) for details. |
+| `jwt_header` | string | No | `authorization` | Request header containing the JWT. For `authorization`, the `Bearer` prefix (and the following space) is stripped automatically. For any other header name (e.g. `cf-access-jwt-assertion`), the value is used as-is. |
+| `user_claim` | string | No | `email` | JWT claim key for the user's email address. |
+| `roles_claim` | string or list of strings | No | `cognito:groups` | JWT claim key for roles. A plain string selects a top-level key; a list of strings selects a nested path (e.g. `["custom", "cognito:groups"]`). The claim value may be a JSON array or a comma-separated string — both are handled. |
+| `allow_raw_roles` | list of strings | No | *(allow all)* | Glob patterns (shell-style, using `fnmatch`) applied to each raw value from `roles_claim` **before** `role_mappings`. Values that do not match any pattern are discarded. When omitted or empty, all values are allowed. See [allow_raw_roles](#allow_raw_roles) for details. |
+| `signout_url` | string | No | — | URL the **Sign out** sidebar link points to. When omitted, the Sign out link is hidden. Typically the proxy sign-out endpoint. |
 
 ### header.signature_verification.*
 
-JWT signature verification prevents header spoofing: even if a client forges the `user_header` / `roles_header` values, it cannot forge a valid JWT signed by the identity provider.
+JWT signature verification prevents token forgery: even if an attacker injects a modified JWT header, it cannot produce a valid signature without the identity provider's private key.
 
 | Key | Type | Required | Default | Description |
 |-----|------|----------|---------|-------------|
-| `enabled` | boolean | No | `false` | Set `true` to enable JWT verification. |
-| `header` | string | No | `authorization` | Request header containing the JWT (`Bearer <token>`). |
-| `issuer` | string | Yes (if enabled) | — | Expected `iss` claim in the JWT. Used to derive the JWKS endpoint (`{issuer}/.well-known/jwks.json`). |
+| `enabled` | boolean | No | `false` | Set `true` to enable JWT signature verification. When `true`, `issuer` and `audience` are required. |
+| `issuer` | string | Yes (if enabled) | — | Expected `iss` claim. Also used to derive the JWKS endpoint as `{issuer}/.well-known/jwks.json` when `jwks_url` is not set. |
+| `jwks_url` | string | No | *(derived from issuer)* | Explicit JWKS endpoint URL. Use when the identity provider's JWKS endpoint is not at the standard path (e.g. Cloudflare Access: `https://<team>.cloudflareaccess.com/cdn-cgi/access/certs`). |
 | `audience` | string | Yes (if enabled) | — | Expected `aud` claim in the JWT. |
 
 !!! warning "Token expiry"
     The proxy must refresh tokens before they expire. When using oauth2-proxy, set `cookie_refresh` to a value shorter than the identity provider's token lifetime (e.g. `cookie_refresh = "50m"` for a 60-minute token). If the token expires before refresh, requests will be rejected with `JWT verification failed: Signature has expired`.
-
-### header.signout_url
-
-| Key | Type | Required | Default | Description |
-|-----|------|----------|---------|-------------|
-| `signout_url` | string | No | — | URL the **Sign out** sidebar link points to. When omitted, the Sign out link is hidden. Typically the oauth2-proxy sign-out endpoint. |
 
 ## allow_raw_roles
 
@@ -101,7 +99,6 @@ allow_raw_roles:
 ## role_mappings
 
 Maps raw role values to display names used throughout the UI.
-Applies regardless of which provider is configured.
 
 ```yaml
 auth:
@@ -127,11 +124,12 @@ Role display colours in the UI:
 ## Debug endpoint
 
 The `/debug` page shows all request headers, the decoded JWT payload, and the mapped roles.
-It is intended for verifying that a reverse proxy is injecting the expected headers.
+It is intended for verifying that a reverse proxy is injecting the expected headers and JWT.
+
+Enable it via the top-level `debug` key (not under `auth`):
 
 ```yaml
-auth:
-  enable_debug_endpoint: true   # default: false
+debug: true
 ```
 
 !!! warning
@@ -150,7 +148,8 @@ Browser → oauth2-proxy → OQTOPUS Manager
           Amazon Cognito
 ```
 
-oauth2-proxy authenticates the user against Cognito and injects the identity headers before forwarding requests to OQTOPUS Manager.
+oauth2-proxy authenticates the user against Cognito and forwards requests to OQTOPUS Manager with an `Authorization: Bearer <id_token>` header.
+OQTOPUS Manager decodes the JWT to read `email` and `cognito:groups` claims directly.
 
 ### oauth2-proxy configuration (`oauth2-proxy.cfg`)
 
@@ -174,10 +173,7 @@ cookie_secure  = false   # true in production (requires HTTPS)
 cookie_refresh = "50m"   # must be shorter than Cognito token expiry (default 1h)
 
 # Headers passed to upstream
-set_xauthrequest          = true   # X-Auth-Request-* headers
-pass_authorization_header = true   # Authorization: Bearer <id_token> for JWT verification
-pass_user_headers         = true   # X-Forwarded-Email, X-Forwarded-Groups, etc.
-pass_access_token         = false
+pass_authorization_header = true   # Authorization: Bearer <id_token> — required for JWT reading
 
 # Access control
 email_domains = ["*"]
@@ -192,13 +188,11 @@ Generate `cookie_secret` with the following one-liner:
 python -c "import secrets, base64; print(base64.b64encode(secrets.token_bytes(32)).decode())"
 ```
 
-oauth2-proxy injects the following headers into upstream requests:
+oauth2-proxy injects the following header into upstream requests:
 
-| Header | Example value | Maps to |
+| Header | Example value | Purpose |
 |--------|--------------|---------|
-| `x-forwarded-email` | `alice@example.com` | `user_header` |
-| `x-forwarded-groups` | `oqtopus-manager.admin,oqtopus-manager.operator` | `roles_header` |
-| `authorization` | `Bearer eyJ...` | `signature_verification.header` |
+| `authorization` | `Bearer eyJ...` | JWT containing `email` and `cognito:groups` claims |
 
 ### OQTOPUS Manager configuration (`config.yaml`)
 
@@ -206,13 +200,13 @@ oauth2-proxy injects the following headers into upstream requests:
 auth:
   provider: header
   header:
-    user_header: x-forwarded-email
-    roles_header: x-forwarded-groups
+    jwt_header: authorization          # "authorization" → Bearer prefix stripped automatically
+    user_claim: email                  # standard JWT claim for email
+    roles_claim: "cognito:groups"      # Cognito group membership claim
     allow_raw_roles:
-      - oqtopus-manager.*          # discard groups from other applications
+      - oqtopus-manager.*              # discard groups from other applications
     signature_verification:
-      enabled: true                # verify the JWT to prevent header spoofing
-      header: authorization
+      enabled: true                    # verify the JWT to prevent token forgery
       issuer: "https://cognito-idp.{region}.amazonaws.com/{user-pool-id}"
       audience: "{app-client-id}"
     signout_url: "http://localhost:4180/oauth2/sign_out?rd={cognito-login-url}"

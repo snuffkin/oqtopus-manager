@@ -9,17 +9,20 @@ class SignatureVerificationConfig(BaseModel):
     """JWT signature verification sub-config (under provider: header)."""
 
     enabled: bool = False
-    header: str = "authorization"
-    issuer: str = ""
-    audience: str = ""
+    issuer: str = ""  # required when enabled=true; also used to derive jwks_url
+    jwks_url: str | None = None  # explicit JWKS endpoint; overrides issuer-derived URL
+    audience: str = ""  # required when enabled=true
 
 
 class HeaderProviderConfig(BaseModel):
     """Settings specific to the header-based authentication provider."""
 
-    user_header: str = "x-forwarded-email"
-    roles_header: str = "x-forwarded-groups"
-    # glob patterns on raw roles_header values, applied before role_mappings
+    # "authorization" → strip "Bearer " prefix automatically
+    jwt_header: str = "authorization"
+    user_claim: str = "email"
+    # str = simple key; list[str] = nested path (e.g. ["custom", "cognito:groups"])
+    roles_claim: str | list[str] = "cognito:groups"
+    # glob patterns on raw roles_claim values, applied before role_mappings
     allow_raw_roles: list[str] = []  # empty = allow all
     signature_verification: SignatureVerificationConfig | None = None
     signout_url: str | None = None
@@ -31,4 +34,3 @@ class AuthConfig(BaseModel):
     provider: str = "none"
     header: HeaderProviderConfig = HeaderProviderConfig()
     role_mappings: dict[str, str] = {}
-    enable_debug_endpoint: bool = False

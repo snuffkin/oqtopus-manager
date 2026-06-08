@@ -38,6 +38,7 @@ class AppConfig(BaseModel):
     environment_templates: list[str] = ["backend"]
     sidebar_links: list[SidebarLink] = []
     auth: AuthConfig = AuthConfig()
+    debug: bool = False
 
     @classmethod
     def load(cls, config_path: pathlib.Path) -> AppConfig:
@@ -59,20 +60,28 @@ class AppConfig(BaseModel):
         appearance = raw.get("appearance", {})
         auth_raw = raw.get("auth", {})
         header_raw = auth_raw.get("header") or {}
-        sig_ver_raw = header_raw.get("signature_verification")
+        sig_ver_raw = header_raw.get("signature_verification") or {}
+        sig_ver = (
+            SignatureVerificationConfig(
+                enabled=bool(sig_ver_raw.get("enabled", False)),
+                issuer=sig_ver_raw.get("issuer", ""),
+                jwks_url=sig_ver_raw.get("jwks_url"),
+                audience=sig_ver_raw.get("audience", ""),
+            )
+            if sig_ver_raw
+            else None
+        )
         auth = AuthConfig(
             provider=auth_raw.get("provider", "none"),
             header=HeaderProviderConfig(
-                user_header=header_raw.get("user_header", "x-forwarded-email"),
-                roles_header=header_raw.get("roles_header", "x-forwarded-groups"),
+                jwt_header=header_raw.get("jwt_header", "authorization"),
+                user_claim=header_raw.get("user_claim", "email"),
+                roles_claim=header_raw.get("roles_claim", "cognito:groups"),
                 allow_raw_roles=header_raw.get("allow_raw_roles") or [],
-                signature_verification=(
-                    SignatureVerificationConfig(**sig_ver_raw) if sig_ver_raw else None
-                ),
+                signature_verification=sig_ver,
                 signout_url=header_raw.get("signout_url"),
             ),
             role_mappings=auth_raw.get("role_mappings") or {},
-            enable_debug_endpoint=bool(auth_raw.get("enable_debug_endpoint", False)),
         )
 
         default_base = cwd / pathlib.Path(server["default_environment_base_path"])
@@ -80,6 +89,7 @@ class AppConfig(BaseModel):
 
         return cls(
             config_path=config_path.resolve(),
+            debug=bool(raw.get("debug", False)),
             default_environment_base_path=default_base.resolve(),
             environments_file=environments_file.resolve(),
             host=server.get("host", "127.0.0.1"),

@@ -16,7 +16,7 @@ if TYPE_CHECKING:
 
     from .config import AuthConfig, SignatureVerificationConfig
 
-# One PyJWKClient per issuer URL; kept alive for JWKS key caching across requests
+# One PyJWKClient per JWKS URI; kept alive for key caching across requests
 _jwks_clients: dict[str, PyJWKClient] = {}
 
 logger = logging.getLogger(__name__)
@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class AuthUser:
-    """Authenticated user extracted from request headers."""
+    """Authenticated user extracted from JWT claims."""
 
     email: str
     roles: list[str] = field(default_factory=list)
@@ -75,44 +75,119 @@ class NullAuthProvider(AuthProvider):
         return None
 
 
+def _extract_token(header_value: str, jwt_header: str) -> str | None:
+    """Extract the raw JWT string from a header value.
+
+    For the ``authorization`` header, strips the ``Bearer `` prefix.
+    For all other headers, treats the value as a raw JWT.
+
+    Returns:
+        Raw JWT string, or ``None`` if absent or Bearer prefix is missing.
+
+    """
+    if not header_value:
+        return None
+    if jwt_header.lower() == "authorization":
+        if not header_value.lower().startswith("bearer "):
+            return None
+        return header_value[len("bearer ") :]
+    return header_value
+
+
+def _get_claim(payload: dict, claim: str | list[str]) -> object:
+    """Navigate a JWT payload using a claim key or nested path.
+
+    ``claim`` is a plain key name (string) or an ordered list of keys for
+    nested access (e.g. ``["custom", "cognito:groups"]``).
+
+    Returns:
+        The claim value, or ``None`` if any key is missing along the path.
+
+    """
+    if isinstance(claim, str):
+        return payload.get(claim)
+    current: object = payload
+    for key in claim:
+        if not isinstance(current, dict):
+            return None
+        current = current.get(key)
+    return current
+
+
+def _extract_roles(raw_value: object) -> list[str]:
+    """Normalise a roles claim value to a flat list of strings.
+
+    Handles both JSON arrays and comma-separated strings, since different
+    identity providers use different formats for multi-value claims.
+
+    Returns:
+        Flat list of non-empty role strings.
+
+    """
+    if raw_value is None:
+        return []
+    if isinstance(raw_value, list):
+        return [str(r) for r in raw_value if r]
+    if isinstance(raw_value, str):
+        return [r.strip() for r in raw_value.split(",") if r.strip()]
+    return []
+
+
 def _verify_jwt(token: str, sig_cfg: SignatureVerificationConfig) -> None:
-    """Verify JWT signature and iss/aud claims via the issuer's JWKS endpoint."""
-    issuer = sig_cfg.issuer
-    if issuer not in _jwks_clients:
-        jwks_uri = f"{issuer.rstrip('/')}/.well-known/jwks.json"
-        _jwks_clients[issuer] = PyJWKClient(jwks_uri, cache_jwk_set=True, lifespan=300)
-    signing_key = _jwks_clients[issuer].get_signing_key_from_jwt(token)
+    """Verify JWT signature and claims via the issuer's JWKS endpoint."""
+    jwks_uri = sig_cfg.jwks_url or f"{sig_cfg.issuer.rstrip('/')}/.well-known/jwks.json"
+    if jwks_uri not in _jwks_clients:
+        _jwks_clients[jwks_uri] = PyJWKClient(
+            jwks_uri, cache_jwk_set=True, lifespan=300
+        )
+    signing_key = _jwks_clients[jwks_uri].get_signing_key_from_jwt(token)
     jwt.decode(
         token,
         signing_key.key,
         algorithms=["RS256"],
         audience=sig_cfg.audience,
-        issuer=issuer,
+        issuer=sig_cfg.issuer,
     )
 
 
 class HeaderAuthProvider(AuthProvider):
-    """Provider that extracts user and role from HTTP headers set by a reverse proxy."""
+    """Provider that extracts user and roles from JWT claims set by a reverse proxy."""
 
     def __init__(self, cfg: AuthConfig) -> None:
         self._cfg = cfg
 
     @override
     async def authenticate(self, request: Request) -> AuthUser | None:
-        """Extract user from proxy headers and validate JWT signature if configured.
+        """Extract user and roles from JWT claims, then optionally verify the signature.
 
         Returns:
             Authenticated ``AuthUser``.
 
         Raises:
-            AuthenticationError: If role mapping fails or JWT verification fails.
+            AuthenticationError: If the JWT is missing/invalid, no roles match,
+                or signature verification fails.
 
         """
         cfg = self._cfg
         hdr = cfg.header
-        email = request.headers.get(hdr.user_header, "")
-        raw_groups_str = request.headers.get(hdr.roles_header, "")
-        raw_groups = [g.strip() for g in raw_groups_str.split(",") if g.strip()]
+
+        # Extract raw JWT from the configured header
+        header_value = request.headers.get(hdr.jwt_header, "")
+        token = _extract_token(header_value, hdr.jwt_header)
+        if not token:
+            msg = "missing JWT"
+            raise AuthenticationError(msg)
+
+        # Decode without verification to read claims
+        try:
+            payload: dict = jwt.decode(token, options={"verify_signature": False})
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("JWT decode failed: %s", exc)
+            msg = "invalid JWT"
+            raise AuthenticationError(msg) from None
+
+        email = str(_get_claim(payload, hdr.user_claim) or "")
+        raw_groups = _extract_roles(_get_claim(payload, hdr.roles_claim))
 
         # Discard values not matching any allow_raw_roles pattern before mapping
         if hdr.allow_raw_roles:
@@ -128,22 +203,18 @@ class HeaderAuthProvider(AuthProvider):
             msg = "no allowed role"
             raise AuthenticationError(msg)
 
-        # Map to display name; fall back to the raw group name if unmapped
+        # Map to display name; fall back to raw value if unmapped
         roles = [cfg.role_mappings.get(g, g) for g in allowed]
 
+        # Verify signature if enabled
         sig = hdr.signature_verification
         if sig and sig.enabled:
-            auth_header = request.headers.get(sig.header, "")
-            if not auth_header.lower().startswith("bearer "):
-                msg = "missing JWT"
-                raise AuthenticationError(msg)
-            token = auth_header[len("bearer ") :]
             try:
                 _verify_jwt(token, sig)
             except Exception as exc:  # noqa: BLE001
                 logger.warning("JWT verification failed: %s", exc)
                 msg = "invalid JWT"
-                raise AuthenticationError(msg) from None  # hide internal JWT details
+                raise AuthenticationError(msg) from None  # hide internal details
 
         return AuthUser(email=email, roles=roles, raw_groups=raw_groups)
 

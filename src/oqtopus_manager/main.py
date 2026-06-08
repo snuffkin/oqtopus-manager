@@ -78,7 +78,7 @@ def create_app(config_path: pathlib.Path) -> FastAPI:
     app.include_router(app_settings.router)
     if cfg.auth.provider != "none":
         app.include_router(me.router)
-    if cfg.auth.enable_debug_endpoint:
+    if cfg.debug:
         app.include_router(debug.router)
 
     # Redirect / to the first configured template
