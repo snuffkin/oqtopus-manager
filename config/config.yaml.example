@@ -51,3 +51,6 @@ auth:
   # role_mappings:                     # raw roles_claim value → display name; unmapped values pass through as-is
   #   your-app.operator: operator
   #   your-app.admin: admin
+
+# Debug settings: enables /debug route for inspecting request headers and JWT. Never enable in production.
+# enable_debug_endpoint: true

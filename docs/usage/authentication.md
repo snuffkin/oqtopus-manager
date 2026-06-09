@@ -25,6 +25,48 @@ Trusts a JWT delivered in an HTTP header set by a reverse proxy that sits in fro
 The proxy is responsible for authenticating the user and injecting the JWT before forwarding the request.
 OQTOPUS Manager decodes the JWT to read the user's email and roles directly from claims.
 
+### Authentication flow
+
+**Premise: role naming convention**
+
+OQTOPUS Manager assumes that roles in the identity provider follow an
+`<application-identifier>.<role>` naming pattern, such as `oqtopus-manager.admin` or
+`oqtopus-manager.operator`. A user may hold multiple roles simultaneously.
+
+**Steps**
+
+1. **JWT extraction** — read the HTTP header named by `jwt_header`. For `authorization`,
+   the `Bearer ` prefix is stripped automatically; for any other header name
+   (e.g. `cf-access-jwt-assertion`), the value is used as-is.
+   If no JWT is present, the request is rejected with `403`.
+
+2. **User identity** — navigate the JWT payload to the path specified by `user_claim`
+   (e.g. `email`) and treat the value as the user's identifier.
+
+3. **Raw role extraction** — navigate the JWT payload to the path specified by
+   `roles_claim` (e.g. `cognito:groups`) and read the value as a list of role strings.
+   Both JSON arrays and comma-separated strings are accepted.
+
+4. **`allow_raw_roles` filtering** — if `allow_raw_roles` is configured, only roles
+   matching at least one glob pattern are passed to subsequent steps. Roles unrelated
+   to this application (e.g. from other systems sharing the same identity provider)
+   are discarded here. If no roles remain, the request is rejected with `403`.
+
+5. **`role_mappings`** — each role is looked up in `role_mappings`. If a mapping exists,
+   the display name is used (e.g. `oqtopus-manager.admin` → `admin`); otherwise the raw
+   value passes through as-is.
+   !!! note
+       Unmapped roles pass through unchanged. If `role_mappings` is omitted entirely,
+       raw role values become the effective roles.
+
+6. **Signature verification** — if `signature_verification.enabled` is `true`, the JWT
+   signature is verified against the issuer's JWKS endpoint. If verification fails,
+   the request is rejected with `403`.
+
+7. **Result** — the mapped roles and user email are attached to the request as the
+   authenticated user. These are the roles OQTOPUS Manager uses for display and access
+   control.
+
 ### Full configuration reference
 
 ```yaml
@@ -123,18 +165,7 @@ Role display colours in the UI:
 
 ## Debug endpoint
 
-The `/debug` page shows all request headers, the decoded JWT payload, and the mapped roles.
-It is intended for verifying that a reverse proxy is injecting the expected headers and JWT.
-
-Enable it via the top-level `debug` key (not under `auth`):
-
-```yaml
-debug: true
-```
-
-!!! warning
-    `/debug` exposes authentication tokens and user identity in plain text.
-    Never enable it in production.
+See [enable_debug_endpoint](configuration.md#enable_debug_endpoint) in the configuration reference.
 
 ## Example: Amazon Cognito with oauth2-proxy
 
@@ -226,3 +257,75 @@ auth:
 4. **`iss` claim** — the issuer URL is `https://cognito-idp.{region}.amazonaws.com/{user-pool-id}`.
 5. **`aud` claim** — the audience is the App client ID.
 6. **Token expiry** — the default ID token lifetime is **1 hour**. Set `cookie_refresh = "50m"` in oauth2-proxy to ensure tokens are refreshed before they expire.
+
+## Example: Cloudflare Access + Amazon Cognito
+
+This example uses [Cloudflare Access](https://www.cloudflare.com/products/zero-trust/access/) as the reverse proxy and Amazon Cognito as the OIDC identity provider.
+
+### Architecture
+
+```text
+Browser → Cloudflare Access → OQTOPUS Manager
+                ↕
+          Amazon Cognito (OIDC)
+```
+
+Cloudflare Access authenticates users via Cognito and injects a signed JWT into every upstream request via the `cf-access-jwt-assertion` header.
+OQTOPUS Manager reads `email` and Cognito group claims directly from this JWT.
+
+### JWT claims structure
+
+Cloudflare Access places OIDC claims forwarded from Cognito under a `custom` key in the JWT payload:
+
+```json
+{
+  "iss": "https://{team}.cloudflareaccess.com",
+  "aud": ["{application-aud-tag}"],
+  "email": "user@example.com",
+  "custom": {
+    "cognito:groups": ["oqtopus-manager.admin", "oqtopus-manager.operator"]
+  }
+}
+```
+
+The JWKS endpoint is at a non-standard path (`/cdn-cgi/access/certs`), so `jwks_url` must be set explicitly.
+
+### Header injected by Cloudflare Access
+
+| Header | Example value | Purpose |
+|--------|--------------|---------|
+| `cf-access-jwt-assertion` | `eyJ...` | Cloudflare-signed JWT (raw value, no `Bearer` prefix) |
+
+### OQTOPUS Manager configuration (`config.yaml`)
+
+```yaml
+auth:
+  provider: header
+  header:
+    jwt_header: cf-access-jwt-assertion       # raw JWT, no Bearer prefix
+    user_claim: email
+    roles_claim: ["custom", "cognito:groups"] # Cognito groups nested under "custom"
+    allow_raw_roles:
+      - oqtopus-manager.*
+    signature_verification:
+      enabled: true
+      issuer: "https://{team}.cloudflareaccess.com"
+      jwks_url: "https://{team}.cloudflareaccess.com/cdn-cgi/access/certs"
+      audience: "{application-aud-tag}"       # shown in Cloudflare Zero Trust dashboard
+    signout_url: "https://{team}.cloudflareaccess.com/cdn-cgi/access/logout"
+  role_mappings:
+    oqtopus-manager.operator: operator
+    oqtopus-manager.admin: admin
+```
+
+### Setup checklist
+
+1. **Cognito User Pool** — create groups named `oqtopus-manager.operator` and `oqtopus-manager.admin` and assign users.
+2. **Cognito App client** — create an app client with:
+    - OAuth 2.0 grant type: **Authorization code**
+    - Scopes: `openid`, `email`
+    - Callback URL: `https://{team}.cloudflareaccess.com/cdn-cgi/access/callback`
+3. **Cloudflare Access application** — create a Self-hosted application and add an OIDC identity provider pointing to your Cognito User Pool.
+4. **`issuer`** — use your team domain: `https://{team}.cloudflareaccess.com`.
+5. **`audience`** — find the AUD tag at: Zero Trust → Access → Applications → *[your app]* → **Application Audience (AUD) Tag**. Alternatively, it appears as the `aud` array value in the `/debug` JWT payload.
+6. **`jwks_url`** — Cloudflare Access uses a non-standard JWKS path; set it explicitly to `https://{team}.cloudflareaccess.com/cdn-cgi/access/certs`.

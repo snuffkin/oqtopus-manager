@@ -38,7 +38,7 @@ class AppConfig(BaseModel):
     environment_templates: list[str] = ["backend"]
     sidebar_links: list[SidebarLink] = []
     auth: AuthConfig = AuthConfig()
-    debug: bool = False
+    enable_debug_endpoint: bool = False
 
     @classmethod
     def load(cls, config_path: pathlib.Path) -> AppConfig:
@@ -89,7 +89,7 @@ class AppConfig(BaseModel):
 
         return cls(
             config_path=config_path.resolve(),
-            debug=bool(raw.get("debug", False)),
+            enable_debug_endpoint=bool(raw.get("enable_debug_endpoint", False)),
             default_environment_base_path=default_base.resolve(),
             environments_file=environments_file.resolve(),
             host=server.get("host", "127.0.0.1"),

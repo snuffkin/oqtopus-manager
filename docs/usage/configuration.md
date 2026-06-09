@@ -96,8 +96,21 @@ auth:
 | Key | Type | Required | Default | Description |
 |-----|------|----------|---------|-------------|
 | `provider` | string | No | `none` | Authentication provider. `none` disables auth; `header` reads identity from HTTP headers set by a reverse proxy. |
+
+---
+
+## enable_debug_endpoint
+
+Enables the `/debug` route, which displays request headers, decoded JWT payload, and mapped roles.
+
+```yaml
+# enable_debug_endpoint: true   # default: false (omit to disable)
+```
+
+| Key | Type | Required | Default | Description |
+|-----|------|----------|---------|-------------|
 | `enable_debug_endpoint` | boolean | No | `false` | When `true`, the `/debug` page is available. **Never enable in production.** |
 
 !!! warning
-    `enable_debug_endpoint: true` exposes all request headers, including authentication tokens.
+    `/debug` exposes all request headers, including authentication tokens.
     Only enable it in trusted, development environments.
