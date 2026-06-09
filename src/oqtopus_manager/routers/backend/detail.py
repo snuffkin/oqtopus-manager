@@ -1,4 +1,4 @@
-"""SSE endpoint for executing oqtopus backend subcommands."""
+"""Routes for backend detail, settings-partial, stream, and component-versions."""
 
 from __future__ import annotations
 
@@ -7,9 +7,14 @@ import re
 from typing import TYPE_CHECKING
 
 from fastapi import APIRouter, HTTPException, Request
-from fastapi.responses import JSONResponse, StreamingResponse
+from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
 
-from oqtopus_manager.routers._shared import _get_config, _get_environment_or_404
+from oqtopus_manager.routers._utils import (
+    _get_config,
+    _get_environment_or_404,
+    _get_templates,
+)
+from oqtopus_manager.routers.backend._utils import _read_metadata
 from oqtopus_manager.util.cli import (
     run_oqtopus_subcommand_output,
     stream_oqtopus_subcommand,
@@ -107,6 +112,29 @@ def _build_args(  # noqa: C901, PLR0911, PLR0912, PLR0913, PLR0917
     raise ValueError(msg)
 
 
+@router.get("/{name}/settings-partial", response_class=HTMLResponse)
+async def get_settings_partial(request: Request, name: str) -> HTMLResponse:
+    """Return the settings partial HTML for the given environment.
+
+    Returns:
+        HTMLResponse with the settings partial template.
+
+    """
+    cfg = _get_config(request)
+    env = _get_environment_or_404(name, cfg)
+    resolved = env.resolved_root_path(cfg.default_environment_base_path)
+    meta = _read_metadata(resolved)
+    return _get_templates(request).TemplateResponse(
+        request,
+        "environments/_settings_dl.html",
+        {
+            "meta": meta,
+            "resolved_root_path": resolved,
+            "version_keys": ["engine_version", "tranqu_version", "gateway_version"],
+        },
+    )
+
+
 @router.get("/{name}/component-versions")
 async def component_versions_list(
     request: Request,
@@ -180,3 +208,31 @@ async def backend_stream(  # noqa: PLR0913, PLR0917
             yield chunk
 
     return StreamingResponse(event_stream(), media_type="text/event-stream")
+
+
+@router.get("/{name}", response_class=HTMLResponse)
+async def get_environment(request: Request, name: str) -> HTMLResponse:
+    """Render the environment detail page.
+
+    Returns:
+        HTMLResponse with the environment detail page.
+
+    """
+    cfg = _get_config(request)
+    env = _get_environment_or_404(name, cfg)
+    resolved = env.resolved_root_path(cfg.default_environment_base_path)
+    meta = _read_metadata(resolved)
+    ctx: dict = {
+        "env": env,
+        "resolved_root_path": resolved,
+        "meta": meta,
+        "all_versions_installed": bool(
+            meta.get("engine_version")
+            and meta.get("tranqu_version")
+            and meta.get("gateway_version")
+        ),
+        "version_keys": ["engine_version", "tranqu_version", "gateway_version"],
+    }
+    return _get_templates(request).TemplateResponse(
+        request, "environments/backend_detail.html", ctx
+    )

@@ -5,7 +5,7 @@ import pathlib
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse
 
-from oqtopus_manager.routers._shared import _get_config
+from oqtopus_manager.routers._utils import _get_config
 
 router = APIRouter(prefix="/browse", tags=["browse"])
 

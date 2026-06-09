@@ -13,24 +13,17 @@ from oqtopus_util.config import load_config, setup_logging
 
 from oqtopus_manager.auth.fastapi import AuthMiddleware
 from oqtopus_manager.config import AppConfig
-from oqtopus_manager.routers import (
-    app_settings,
-    backend,
-    backend_environments,
-    browse,
-    cloud_local,
-    cloud_local_environments,
-    debug,
-    me,
-)
+from oqtopus_manager.routers import app_settings, browse, debug, me
+from oqtopus_manager.routers import backend as backend_pkg
+from oqtopus_manager.routers import cloud_local as cloud_local_pkg
 
 # Jinja2 templates directory bundled with the package
 _TEMPLATES_DIR = pathlib.Path(__file__).parent / "templates"
 
-# Maps each template type to its pair of routers (SSE + CRUD)
+# Maps each template type to its list of routers
 _TEMPLATE_ROUTERS = {
-    "backend": [backend.router, backend_environments.router],
-    "cloud-local": [cloud_local.router, cloud_local_environments.router],
+    "backend": backend_pkg.routers,
+    "cloud-local": cloud_local_pkg.routers,
 }
 
 
