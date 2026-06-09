@@ -152,7 +152,7 @@ Use these helpers when implementing new routes — do not re-implement inline:
 | `_UnlockBody` | Pydantic request body: `{token}` |
 | `_SaveBody` | Pydantic request body: `{token, content}` |
 
-### `routers/backend_environments.py`
+### `routers/backend/_utils.py`
 
 | Helper | Purpose |
 |---|---|
@@ -220,18 +220,23 @@ Each template type has its own URL prefix. Routes within a template group are in
 
 | File | URL prefix | Purpose |
 |---|---|---|
-| `routers/_shared.py` | — | Shared helpers: `_get_config`, `_get_templates`, `_get_environment_or_404` |
+| `routers/_utils.py` | — | Shared helpers: `_get_config`, `_get_templates`, `_get_environment_or_404` |
 | `routers/_file_edit.py` | — | Shared file-edit helpers + `_UnlockBody` / `_SaveBody` models |
-| `routers/backend_environments.py` | `/backend` | Environment CRUD, dotenv, service config/log, lock routes (backend template) |
-| `routers/backend.py` | `/backend` | SSE backend commands, component versions JSON |
-| `routers/cloud_local_environments.py` | `/cloud-local` | Environment CRUD, dotenv, service log, lock routes (cloud-local template) |
-| `routers/cloud_local.py` | `/cloud-local` | SSE cloud-local commands, component versions JSON |
+| `routers/backend/list.py` | `/backend` | Environment list, new form, create, delete, init stream |
+| `routers/backend/detail.py` | `/backend` | Environment detail, settings partial, oqtopus command stream, component versions |
+| `routers/backend/dotenv.py` | `/backend` | .env editor, lock/save/download |
+| `routers/backend/service_config.py` | `/backend` | Service config (config.yaml / logging.yaml) and topology JSON editor |
+| `routers/backend/log.py` | `/backend` | Service log view, stream, download |
+| `routers/cloud_local/list.py` | `/cloud-local` | Environment list, new form, create, delete, init stream |
+| `routers/cloud_local/detail.py` | `/cloud-local` | Environment detail, settings partial, command stream, component versions |
+| `routers/cloud_local/dotenv.py` | `/cloud-local` | .env editor, lock/save/download |
+| `routers/cloud_local/log.py` | `/cloud-local` | Service log view, stream, download |
 | `routers/app_settings.py` | `/settings` | App settings page |
 | `routers/browse.py` | `/browse` | File/directory browser |
 
-Each template type gets its own router pair (environments + SSE equivalent). The `list_environments` route filters by `template` value so each prefix only shows its own environments.
+Each template type has its own sub-package (`routers/backend/`, `routers/cloud_local/`) organized by screen. Each sub-package exposes a `routers` list consumed by `main.py`.
 
-To add a new template type: create a router pair, add the URL prefix to `environment_templates` in `config.yaml`, and register the routers in `main.py`.
+To add a new template type: create a sub-package with the same screen structure, add the URL prefix to `environment_templates` in `config.yaml`, and register `pkg.routers` in `main.py`.
 
 ---
 
