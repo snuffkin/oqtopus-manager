@@ -9,7 +9,7 @@ import json
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse
 
-from oqtopus_manager.auth.providers import _extract_token
+from oqtopus_manager.auth.header_provider import extract_token
 
 router = APIRouter()
 
@@ -48,7 +48,7 @@ async def debug_page(request: Request) -> HTMLResponse:
     header_cfg = request.app.state.config.auth.header
     jwt_header = header_cfg.jwt_header if header_cfg else "authorization"
     header_value = request.headers.get(jwt_header, "")
-    token = _extract_token(jwt_header, header_value)
+    token = extract_token(jwt_header, header_value)
 
     jwt_result: dict = {}
     if token:

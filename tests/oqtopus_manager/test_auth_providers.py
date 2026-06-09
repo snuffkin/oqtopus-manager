@@ -10,13 +10,11 @@ import yaml
 from fastapi.testclient import TestClient
 
 from oqtopus_manager.auth.config import AuthConfig, HeaderProviderConfig, SignatureVerificationConfig
+from oqtopus_manager.auth.header_provider import _extract_roles, extract_token, _get_claim
 from oqtopus_manager.auth.providers import (
     AuthenticationError,
     AuthUser,
-    NullAuthProvider,
-    _extract_roles,
-    _extract_token,
-    _get_claim,
+    NullProvider,
     build_provider,
 )
 from oqtopus_manager.main import create_app
@@ -46,27 +44,27 @@ class TestAuthenticationError:
         assert str(err) == "missing JWT"
 
 
-# ── _extract_token ────────────────────────────────────────────────────────────
+# ── extract_token ────────────────────────────────────────────────────────────
 
 
 class TestExtractToken:
     def test_authorization_bearer_stripped(self) -> None:
-        assert _extract_token("authorization", "Bearer abc.def.ghi") == "abc.def.ghi"
+        assert extract_token("authorization", "Bearer abc.def.ghi") == "abc.def.ghi"
 
     def test_authorization_bearer_case_insensitive(self) -> None:
-        assert _extract_token("authorization", "BEARER abc.def.ghi") == "abc.def.ghi"
+        assert extract_token("authorization", "BEARER abc.def.ghi") == "abc.def.ghi"
 
     def test_authorization_missing_bearer_returns_none(self) -> None:
-        assert _extract_token("authorization", "abc.def.ghi") is None
+        assert extract_token("authorization", "abc.def.ghi") is None
 
     def test_empty_header_returns_none(self) -> None:
-        assert _extract_token("authorization", "") is None
+        assert extract_token("authorization", "") is None
 
     def test_custom_header_returns_value_as_is(self) -> None:
-        assert _extract_token("x-jwt-token", "abc.def.ghi") == "abc.def.ghi"
+        assert extract_token("x-jwt-token", "abc.def.ghi") == "abc.def.ghi"
 
     def test_custom_header_empty_returns_none(self) -> None:
-        assert _extract_token("x-jwt-token", "") is None
+        assert extract_token("x-jwt-token", "") is None
 
 
 # ── _get_claim ────────────────────────────────────────────────────────────────
@@ -132,7 +130,7 @@ class TestBuildProvider:
 
     def test_none_returns_null_provider(self) -> None:
         cfg = self._make_auth_cfg("none")
-        assert isinstance(build_provider(cfg), NullAuthProvider)
+        assert isinstance(build_provider(cfg), NullProvider)
 
     def test_unknown_provider_raises(self) -> None:
         cfg = AuthConfig(provider="unknown")
@@ -140,7 +138,7 @@ class TestBuildProvider:
             build_provider(cfg)
 
 
-# ── HeaderAuthProvider via HTTP middleware ────────────────────────────────────
+# ── HeaderProvider via HTTP middleware ────────────────────────────────────
 
 
 _HEADER_AUTH_CONFIG = {
@@ -219,10 +217,10 @@ class TestDecodeJwtWithoutVerification:
         assert result["payload"]["sub"] == "abc"
 
 
-# ── HeaderAuthProvider via HTTP middleware ────────────────────────────────────
+# ── HeaderProvider via HTTP middleware ────────────────────────────────────
 
 
-class TestHeaderAuthProviderViaMiddleware:
+class TestHeaderProviderViaMiddleware:
     def test_missing_jwt_returns_403(self, header_auth_client: TestClient) -> None:
         resp = header_auth_client.get("/backend")
         assert resp.status_code == 403
@@ -261,7 +259,7 @@ class TestHeaderAuthProviderViaMiddleware:
         assert resp.status_code == 403
 
 
-# ── /debug endpoint with HeaderAuthProvider ───────────────────────────────────
+# ── /debug endpoint with HeaderProvider ───────────────────────────────────
 
 _HEADER_DEBUG_CONFIG = {
     **_HEADER_AUTH_CONFIG,
@@ -273,7 +271,7 @@ _HEADER_DEBUG_CONFIG = {
 def header_debug_client(
     tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
 ) -> TestClient:
-    """Client with HeaderAuthProvider + debug endpoint enabled."""
+    """Client with HeaderProvider + debug endpoint enabled."""
     monkeypatch.chdir(tmp_path)
     cfg_path = tmp_path / "config.yaml"
     cfg_path.write_text(yaml.dump(_HEADER_DEBUG_CONFIG), encoding="utf-8")
