@@ -16,9 +16,21 @@ def config_path(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> path
     monkeypatch.chdir(tmp_path)
     config = {
         "server": {
+            "host": "127.0.0.1",
+            "port": 8000,
             "default_environment_base_path": "./environments",
             "environments_file": "./environments.yaml",
-        }
+        },
+        "behavior": {
+            "log_tail_lines": 100,
+            "log_buffer_lines": 1000,
+            "file_edit_lock_timeout_sec": 600,
+        },
+        "appearance": {
+            "app_name": "OQTOPUS Manager",
+            "environment_templates": ["backend"],
+        },
+        "enable_debug_endpoint": False,
     }
     cfg_path = tmp_path / "config.yaml"
     cfg_path.write_text(yaml.dump(config), encoding="utf-8")

@@ -18,8 +18,8 @@ class HeaderProviderConfig(BaseModel):
     """Settings specific to the header-based authentication provider."""
 
     # "authorization" → strip "Bearer " prefix automatically
-    jwt_header: str = "authorization"
-    user_claim: str = "email"
+    jwt_header: str
+    user_claim: str
     # str = simple key; list[str] = nested path (e.g. ["custom", "cognito:groups"])
     roles_claim: str | list[str] = "cognito:groups"
     # glob patterns on raw roles_claim values, applied before role_mappings
@@ -32,5 +32,5 @@ class AuthConfig(BaseModel):
     """Top-level authentication configuration."""
 
     provider: str = "none"
-    header: HeaderProviderConfig = HeaderProviderConfig()
+    header: HeaderProviderConfig | None = None  # None when provider != "header"
     role_mappings: dict[str, str] = {}

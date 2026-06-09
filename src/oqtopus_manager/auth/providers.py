@@ -14,7 +14,7 @@ from jwt import PyJWKClient
 if TYPE_CHECKING:
     from fastapi import Request
 
-    from .config import AuthConfig, SignatureVerificationConfig
+    from .config import AuthConfig, HeaderProviderConfig, SignatureVerificationConfig
 
 # One PyJWKClient per JWKS URI; kept alive for key caching across requests
 _jwks_clients: dict[str, PyJWKClient] = {}
@@ -75,7 +75,7 @@ class NullAuthProvider(AuthProvider):
         return None
 
 
-def _extract_token(header_value: str, jwt_header: str) -> str | None:
+def _extract_token(jwt_header: str, header_value: str) -> str | None:
     """Extract the raw JWT string from a header value.
 
     For the ``authorization`` header, strips the ``Bearer `` prefix.
@@ -154,7 +154,11 @@ class HeaderAuthProvider(AuthProvider):
     """Provider that extracts user and roles from JWT claims set by a reverse proxy."""
 
     def __init__(self, cfg: AuthConfig) -> None:
+        if cfg.header is None:
+            msg = "HeaderAuthProvider requires header configuration"
+            raise ValueError(msg)
         self._cfg = cfg
+        self._header: HeaderProviderConfig = cfg.header
 
     @override
     async def authenticate(self, request: Request) -> AuthUser | None:
@@ -169,11 +173,11 @@ class HeaderAuthProvider(AuthProvider):
 
         """
         cfg = self._cfg
-        hdr = cfg.header
+        header = self._header
 
         # Extract raw JWT from the configured header
-        header_value = request.headers.get(hdr.jwt_header, "")
-        token = _extract_token(header_value, hdr.jwt_header)
+        header_value = request.headers.get(header.jwt_header, "")
+        token = _extract_token(header.jwt_header, header_value)
         if not token:
             msg = "missing JWT"
             raise AuthenticationError(msg)
@@ -186,15 +190,15 @@ class HeaderAuthProvider(AuthProvider):
             msg = "invalid JWT"
             raise AuthenticationError(msg) from None
 
-        email = str(_get_claim(payload, hdr.user_claim) or "")
-        raw_groups = _extract_roles(_get_claim(payload, hdr.roles_claim))
+        email = str(_get_claim(payload, header.user_claim) or "")
+        raw_groups = _extract_roles(_get_claim(payload, header.roles_claim))
 
         # Discard values not matching any allow_raw_roles pattern before mapping
-        if hdr.allow_raw_roles:
+        if header.allow_raw_roles:
             allowed = [
-                g
-                for g in raw_groups
-                if any(fnmatch.fnmatch(g, pat) for pat in hdr.allow_raw_roles)
+                raw_role
+                for raw_role in raw_groups
+                if any(fnmatch.fnmatch(raw_role, pat) for pat in header.allow_raw_roles)
             ]
         else:
             allowed = raw_groups
@@ -204,10 +208,10 @@ class HeaderAuthProvider(AuthProvider):
             raise AuthenticationError(msg)
 
         # Map to display name; fall back to raw value if unmapped
-        roles = [cfg.role_mappings.get(g, g) for g in allowed]
+        roles = [cfg.role_mappings.get(raw_role, raw_role) for raw_role in allowed]
 
         # Verify signature if enabled
-        sig = hdr.signature_verification
+        sig = header.signature_verification
         if sig and sig.enabled:
             try:
                 _verify_jwt(token, sig)

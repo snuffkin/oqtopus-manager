@@ -10,8 +10,11 @@ from typing import TYPE_CHECKING, Annotated
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import JSONResponse, StreamingResponse
 
-from oqtopus_manager.cli import run_oqtopus_subcommand_output, stream_oqtopus_subcommand
 from oqtopus_manager.routers._shared import _get_config, _get_environment_or_404
+from oqtopus_manager.util.cli import (
+    run_oqtopus_subcommand_output,
+    stream_oqtopus_subcommand,
+)
 
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator

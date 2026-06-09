@@ -27,18 +27,18 @@ class AppConfig(BaseModel):
     config_path: pathlib.Path
     default_environment_base_path: pathlib.Path
     environments_file: pathlib.Path
-    host: str = "127.0.0.1"
-    port: int = 8000
-    log_tail_lines: int = 100
-    log_buffer_lines: int = 1000
-    app_name: str = "OQTOPUS Manager"
-    app_icon_path: pathlib.Path | None = None
-    favicon_path: pathlib.Path | None = None
-    file_edit_lock_timeout_sec: int = 600
-    environment_templates: list[str] = ["backend"]
+    host: str
+    port: int
+    log_tail_lines: int
+    log_buffer_lines: int
+    app_name: str
+    app_icon_path: pathlib.Path | None
+    favicon_path: pathlib.Path | None
+    file_edit_lock_timeout_sec: int
+    environment_templates: list[str]
     sidebar_links: list[SidebarLink] = []
     auth: AuthConfig = AuthConfig()
-    enable_debug_endpoint: bool = False
+    enable_debug_endpoint: bool
 
     @classmethod
     def load(cls, config_path: pathlib.Path) -> AppConfig:
@@ -51,6 +51,9 @@ class AppConfig(BaseModel):
         Returns:
             The loaded AppConfig instance.
 
+        Raises:
+            ValueError: If required configuration fields are missing or invalid.
+
         """
         raw = load_config(str(config_path))
 
@@ -59,28 +62,36 @@ class AppConfig(BaseModel):
         behavior = raw.get("behavior", {})
         appearance = raw.get("appearance", {})
         auth_raw = raw.get("auth", {})
-        header_raw = auth_raw.get("header") or {}
-        sig_ver_raw = header_raw.get("signature_verification") or {}
-        sig_ver = (
-            SignatureVerificationConfig(
-                enabled=bool(sig_ver_raw.get("enabled", False)),
-                issuer=sig_ver_raw.get("issuer", ""),
-                jwks_url=sig_ver_raw.get("jwks_url"),
-                audience=sig_ver_raw.get("audience", ""),
+        provider = auth_raw.get("provider", "none")
+        header_cfg: HeaderProviderConfig | None = None
+        if provider == "header":
+            header_raw = auth_raw.get("header") or {}
+            sig_ver_raw = header_raw.get("signature_verification") or {}
+            sig_ver = (
+                SignatureVerificationConfig(
+                    enabled=bool(sig_ver_raw.get("enabled", False)),
+                    issuer=sig_ver_raw.get("issuer", ""),
+                    jwks_url=sig_ver_raw.get("jwks_url"),
+                    audience=sig_ver_raw.get("audience", ""),
+                )
+                if sig_ver_raw
+                else None
             )
-            if sig_ver_raw
-            else None
-        )
-        auth = AuthConfig(
-            provider=auth_raw.get("provider", "none"),
-            header=HeaderProviderConfig(
-                jwt_header=header_raw.get("jwt_header", "authorization"),
-                user_claim=header_raw.get("user_claim", "email"),
+            for key in ("jwt_header", "user_claim"):
+                if not header_raw.get(key):
+                    msg = f"auth.header.{key} is required when provider=header"
+                    raise ValueError(msg)
+            header_cfg = HeaderProviderConfig(
+                jwt_header=header_raw["jwt_header"],
+                user_claim=header_raw["user_claim"],
                 roles_claim=header_raw.get("roles_claim", "cognito:groups"),
                 allow_raw_roles=header_raw.get("allow_raw_roles") or [],
                 signature_verification=sig_ver,
                 signout_url=header_raw.get("signout_url"),
-            ),
+            )
+        auth = AuthConfig(
+            provider=provider,
+            header=header_cfg,
             role_mappings=auth_raw.get("role_mappings") or {},
         )
 
@@ -89,14 +100,14 @@ class AppConfig(BaseModel):
 
         return cls(
             config_path=config_path.resolve(),
-            enable_debug_endpoint=bool(raw.get("enable_debug_endpoint", False)),
+            enable_debug_endpoint=bool(raw["enable_debug_endpoint"]),
             default_environment_base_path=default_base.resolve(),
             environments_file=environments_file.resolve(),
-            host=server.get("host", "127.0.0.1"),
-            port=server.get("port", 8000),
-            log_tail_lines=behavior.get("log_tail_lines", 100),
-            log_buffer_lines=behavior.get("log_buffer_lines", 1000),
-            app_name=appearance.get("app_name", "OQTOPUS Manager"),
+            host=server["host"],
+            port=server["port"],
+            log_tail_lines=behavior["log_tail_lines"],
+            log_buffer_lines=behavior["log_buffer_lines"],
+            app_name=appearance["app_name"],
             app_icon_path=(
                 (cwd / pathlib.Path(appearance["app_icon_path"])).resolve()
                 if appearance.get("app_icon_path")
@@ -107,8 +118,8 @@ class AppConfig(BaseModel):
                 if appearance.get("favicon_path")
                 else None
             ),
-            file_edit_lock_timeout_sec=behavior.get("file_edit_lock_timeout_sec", 600),
-            environment_templates=appearance.get("environment_templates", ["backend"]),
+            file_edit_lock_timeout_sec=behavior["file_edit_lock_timeout_sec"],
+            environment_templates=appearance["environment_templates"],
             sidebar_links=[
                 SidebarLink(**item) for item in (appearance.get("sidebar_links") or [])
             ],

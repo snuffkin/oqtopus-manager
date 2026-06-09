@@ -11,7 +11,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from oqtopus_util.config import load_config, setup_logging
 
-from oqtopus_manager.auth import AuthMiddleware
+from oqtopus_manager.auth.fastapi import AuthMiddleware
 from oqtopus_manager.config import AppConfig
 from oqtopus_manager.routers import (
     app_settings,

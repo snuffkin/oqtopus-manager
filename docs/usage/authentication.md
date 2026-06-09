@@ -33,7 +33,7 @@ OQTOPUS Manager assumes that roles in the identity provider follow an
 `<application-identifier>.<role>` naming pattern, such as `oqtopus-manager.admin` or
 `oqtopus-manager.operator`. A user may hold multiple roles simultaneously.
 
-**Steps**
+**How OQTOPUS Manager authenticates each request**
 
 1. **JWT extraction** — read the HTTP header named by `jwt_header`. For `authorization`,
    the `Bearer ` prefix is stripped automatically; for any other header name

@@ -29,8 +29,8 @@ server:
 
 | Key | Type | Required | Default | Description |
 |-----|------|----------|---------|-------------|
-| `host` | string | No | `127.0.0.1` | Address the HTTP server listens on. Use `0.0.0.0` to accept remote connections. |
-| `port` | integer | No | `8000` | TCP port the HTTP server listens on. |
+| `host` | string | **Yes** | — | Address the HTTP server listens on. Use `0.0.0.0` to accept remote connections. |
+| `port` | integer | **Yes** | — | TCP port the HTTP server listens on. |
 | `default_environment_base_path` | path | **Yes** | — | Directory where environment folders are stored when `root_path` is not specified per-environment. Relative paths are resolved from the working directory. |
 | `environments_file` | path | **Yes** | — | YAML file that stores the list of registered environments. Created automatically on first use. |
 
@@ -49,9 +49,9 @@ behavior:
 
 | Key | Type | Required | Default | Description |
 |-----|------|----------|---------|-------------|
-| `log_tail_lines` | integer | No | `100` | Number of lines fetched from the end of a log file when the log page first loads. |
-| `log_buffer_lines` | integer | No | `1000` | Maximum number of lines kept in the browser-side log buffer during live streaming. Older lines are discarded as new ones arrive. |
-| `file_edit_lock_timeout_sec` | integer | No | `600` | Seconds before an idle edit lock expires and is released automatically. Prevents files from remaining locked when a browser tab is closed mid-edit. |
+| `log_tail_lines` | integer | **Yes** | — | Number of lines fetched from the end of a log file when the log page first loads. |
+| `log_buffer_lines` | integer | **Yes** | — | Maximum number of lines kept in the browser-side log buffer during live streaming. Older lines are discarded as new ones arrive. |
+| `file_edit_lock_timeout_sec` | integer | **Yes** | — | Seconds before an idle edit lock expires and is released automatically. Prevents files from remaining locked when a browser tab is closed mid-edit. |
 
 ---
 
@@ -76,10 +76,10 @@ appearance:
 
 | Key | Type | Required | Default | Description |
 |-----|------|----------|---------|-------------|
-| `app_name` | string | No | `OQTOPUS Manager` | Application name displayed in the browser title and sidebar header. |
+| `app_name` | string | **Yes** | — | Application name displayed in the browser title and sidebar header. |
 | `app_icon_path` | path | No | — | Path to the SVG or image used as the sidebar logo. Served at `/app-icon`. |
 | `favicon_path` | path | No | — | Path to the favicon image. Served at `/favicon.ico`. |
-| `environment_templates` | list | **Yes** | `["backend"]` | Ordered list of template types to show in the sidebar. The first entry is the default redirect target from `/`. Supported values: `backend`, `cloud-local`. |
+| `environment_templates` | list | **Yes** | — | Ordered list of template types to show in the sidebar. The first entry is the default redirect target from `/`. Supported values: `backend`, `cloud-local`. |
 | `sidebar_links` | list | No | `[]` | External links shown at the bottom of the sidebar. Each entry has `label` (string) and `url` (string). |
 
 ---
@@ -104,12 +104,12 @@ auth:
 Enables the `/debug` route, which displays request headers, decoded JWT payload, and mapped roles.
 
 ```yaml
-# enable_debug_endpoint: true   # default: false (omit to disable)
+enable_debug_endpoint: false
 ```
 
 | Key | Type | Required | Default | Description |
 |-----|------|----------|---------|-------------|
-| `enable_debug_endpoint` | boolean | No | `false` | When `true`, the `/debug` page is available. **Never enable in production.** |
+| `enable_debug_endpoint` | boolean | **Yes** | — | Set `true` to enable the `/debug` page. **Never enable in production.** |
 
 !!! warning
     `/debug` exposes all request headers, including authentication tokens.

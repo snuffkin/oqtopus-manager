@@ -45,9 +45,10 @@ async def debug_page(request: Request) -> HTMLResponse:
     headers = sorted(request.headers.items())
 
     # Use the configured jwt_header so the debug view matches the auth provider
-    jwt_header = request.app.state.config.auth.header.jwt_header
+    header_cfg = request.app.state.config.auth.header
+    jwt_header = header_cfg.jwt_header if header_cfg else "authorization"
     header_value = request.headers.get(jwt_header, "")
-    token = _extract_token(header_value, jwt_header)
+    token = _extract_token(jwt_header, header_value)
 
     jwt_result: dict = {}
     if token:
@@ -58,7 +59,7 @@ async def debug_page(request: Request) -> HTMLResponse:
 
     # Compute allowed raw roles (after allow_raw_roles filtering) when patterns are set
     user = request.state.user
-    allow_patterns = request.app.state.config.auth.header.allow_raw_roles
+    allow_patterns = header_cfg.allow_raw_roles if header_cfg else []
     allowed_raw_roles: list[str] | None = None
     if user and allow_patterns:
         allowed_raw_roles = [

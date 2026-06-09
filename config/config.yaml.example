@@ -53,4 +53,4 @@ auth:
   #   your-app.admin: admin
 
 # Debug settings: enables /debug route for inspecting request headers and JWT. Never enable in production.
-# enable_debug_endpoint: true
+enable_debug_endpoint: false

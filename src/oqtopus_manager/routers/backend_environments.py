@@ -17,7 +17,6 @@ from fastapi.responses import (
 )
 from pydantic import ValidationError
 
-from oqtopus_manager.cli import stream_log_tail, stream_oqtopus_init
 from oqtopus_manager.models.environment import Environment
 from oqtopus_manager.routers._file_edit import (
     _acquire_file_lock,
@@ -33,6 +32,7 @@ from oqtopus_manager.routers._shared import (
     _get_environment_or_404,
     _get_templates,
 )
+from oqtopus_manager.util.cli import stream_log_tail, stream_oqtopus_init
 
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator
