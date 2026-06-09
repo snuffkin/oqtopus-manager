@@ -26,11 +26,11 @@ from oqtopus_manager.routers.debug import _decode_jwt_without_verification
 
 class TestAuthUser:
     def test_role_returns_first_role(self) -> None:
-        user = AuthUser(email="a@b.com", roles=["admin", "user"])
+        user = AuthUser(account="a@b.com", roles=["admin", "user"])
         assert user.role == "admin"
 
     def test_role_empty_returns_empty_string(self) -> None:
-        user = AuthUser(email="a@b.com", roles=[])
+        user = AuthUser(account="a@b.com", roles=[])
         assert user.role == ""
 
 

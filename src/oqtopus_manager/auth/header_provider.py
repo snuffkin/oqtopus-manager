@@ -141,7 +141,7 @@ class HeaderProvider(AuthProvider):
             msg = "invalid JWT"
             raise AuthenticationError(msg) from None
 
-        email = str(_get_claim(payload, header.user_claim) or "")
+        account = str(_get_claim(payload, header.user_claim) or "")
         raw_groups = _extract_roles(_get_claim(payload, header.roles_claim))
 
         # Discard values not matching any allow_raw_roles pattern before mapping
@@ -171,4 +171,4 @@ class HeaderProvider(AuthProvider):
                 msg = "invalid JWT"
                 raise AuthenticationError(msg) from None  # hide internal details
 
-        return AuthUser(email=email, roles=roles, raw_groups=raw_groups)
+        return AuthUser(account=account, roles=roles, raw_groups=raw_groups)

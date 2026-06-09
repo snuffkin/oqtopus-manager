@@ -274,10 +274,10 @@
           {% if request.state.user.role == 'admin' %}bg-amber-100 text-amber-700
           {% elif request.state.user.role == 'operator' %}bg-blue-100 text-blue-600
           {% else %}bg-gray-100 text-gray-600{% endif %}">
-          {{ request.state.user.email[0] | upper }}
+          {{ request.state.user.account[0] | upper }}
         </div>
         <div class="sidebar-label min-w-0">
-          <p class="text-xs font-medium text-gray-900 truncate leading-tight">{{ request.state.user.email }}</p>
+          <p class="text-xs font-medium text-gray-900 truncate leading-tight">{{ request.state.user.account }}</p>
           <div class="flex flex-wrap gap-x-1 mt-0.5">
             {% for r in request.state.user.roles %}
             <span class="text-xs leading-tight

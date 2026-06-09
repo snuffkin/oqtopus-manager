@@ -14,7 +14,7 @@ if TYPE_CHECKING:
 class AuthUser:
     """Authenticated user extracted from JWT claims."""
 
-    email: str
+    account: str
     roles: list[str] = field(default_factory=list)
     raw_groups: list[str] = field(default_factory=list)
 
