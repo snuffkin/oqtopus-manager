@@ -35,7 +35,7 @@
 <div class="relative overflow-hidden px-8 py-8" style="background: url('/assets/mv_bg.png') center/cover no-repeat; background-color: #2563eb;">
   {% include "_banner_svg.html" %}
   <div class="relative">
-    <a href="/backend/{{ env.name }}" class="inline-flex items-center gap-1 text-blue-200 hover:text-white text-sm mb-2 transition-colors">
+    <a href="{{ url_prefix }}/{{ env.name }}" class="inline-flex items-center gap-1 text-blue-200 hover:text-white text-sm mb-2 transition-colors">
       <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <path d="M19 12H5M12 5l-7 7 7 7"/>
       </svg>
@@ -95,7 +95,7 @@
         Preview &amp; Save
       </button>
       <button id="cancel-btn" onclick="cancelEdit()" class="hidden btn btn-ghost btn-sm text-gray-500">Cancel</button>
-      <a id="download-btn" href="/backend/{{ env.name }}/dotenv/download" class="btn btn-ghost btn-sm text-gray-400 hover:text-gray-600 gap-1" title="Download .env">
+      <a id="download-btn" href="{{ url_prefix }}/{{ env.name }}/dotenv/download" class="btn btn-ghost btn-sm text-gray-400 hover:text-gray-600 gap-1" title="Download .env">
         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
           <polyline points="7 10 12 15 17 10"/>
@@ -197,6 +197,7 @@
 
   var rawContent = {{ dotenv_content | tojson }};
   var envName = {{ env.name | tojson }};
+  var urlPrefix = {{ url_prefix | tojson }};
   var lockTimeoutSec = {{ lock_timeout_sec }};
 
   function esc(s) {
@@ -347,8 +348,8 @@
 
   function openForceUnlockModal() {
     _forceUnlockCb = async function () {
-      await fetch('/backend/' + envName + '/dotenv/force-unlock', { method: 'POST' });
-      var res  = await fetch('/backend/' + envName + '/dotenv/lock', { method: 'POST' });
+      await fetch(urlPrefix + '/' + envName + '/dotenv/force-unlock', { method: 'POST' });
+      var res  = await fetch(urlPrefix + '/' + envName + '/dotenv/lock', { method: 'POST' });
       var data = await res.json();
       if (!data.ok) {
         showLockBadge(data.locked_since || '?', data.locked_since_ts || Date.now() / 1000);
@@ -360,7 +361,7 @@
   }
 
   async function startEdit() {
-    var res  = await fetch('/backend/' + envName + '/dotenv/lock', { method: 'POST' });
+    var res  = await fetch(urlPrefix + '/' + envName + '/dotenv/lock', { method: 'POST' });
     var data = await res.json();
     if (!data.ok) {
       showLockBadge(data.locked_since || '?', data.locked_since_ts || Date.now() / 1000);
@@ -382,7 +383,7 @@
   async function doCancel() {
     stopCountdown();
     if (lockToken) {
-      await fetch('/backend/' + envName + '/dotenv/unlock', {
+      await fetch(urlPrefix + '/' + envName + '/dotenv/unlock', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ token: lockToken }),
@@ -462,7 +463,7 @@
     var newContent = document.getElementById('edit-textarea').value;
     var errEl = document.getElementById('save-error');
     errEl.classList.add('hidden');
-    var res  = await fetch('/backend/' + envName + '/dotenv/save', {
+    var res  = await fetch(urlPrefix + '/' + envName + '/dotenv/save', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ token: lockToken, content: newContent }),
@@ -479,7 +480,7 @@
 
   window.addEventListener('beforeunload', function () {
     if (lockToken) {
-      fetch('/backend/' + envName + '/dotenv/unlock', {
+      fetch(urlPrefix + '/' + envName + '/dotenv/unlock', {
         method: 'POST',
         keepalive: true,
         headers: { 'Content-Type': 'application/json' },
