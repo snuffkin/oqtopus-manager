@@ -21,6 +21,13 @@ Examples of comment-worthy blocks:
 
 ---
 
+## Naming Conventions
+
+- **No single-letter variable names.** Use descriptive names that reflect the value's role (e.g. `raw_role` not `g`, `pattern` not `p`).
+- Exception: `e` in `except ... as e:` is conventional and allowed.
+
+---
+
 ## Stack
 
 - **Backend**: FastAPI + Jinja2 templates

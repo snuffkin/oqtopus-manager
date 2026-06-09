@@ -63,9 +63,9 @@ async def debug_page(request: Request) -> HTMLResponse:
     allowed_raw_roles: list[str] | None = None
     if user and allow_patterns:
         allowed_raw_roles = [
-            g
-            for g in user.raw_groups
-            if any(fnmatch.fnmatch(g, pat) for pat in allow_patterns)
+            raw_role
+            for raw_role in user.raw_groups
+            if any(fnmatch.fnmatch(raw_role, pat) for pat in allow_patterns)
         ]
 
     return request.app.state.templates.TemplateResponse(
