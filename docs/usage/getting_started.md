@@ -5,7 +5,7 @@
 | Tool | Version | Description |
 |------|---------|-------------|
 | [Python](https://www.python.org/downloads/) | >=3.14 | Python programming language |
-| [uv](https://docs.astral.sh/uv/) | latest | Python package and project manager |
+| [uv](https://docs.astral.sh/uv/) | >=0.10 | Python package and project manager |
 
 ## Quick Start
 
