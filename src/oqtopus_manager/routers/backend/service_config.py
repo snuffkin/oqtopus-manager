@@ -10,6 +10,7 @@ if TYPE_CHECKING:
     import pathlib
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 
+from oqtopus_manager.auth.fastapi import require_permission
 from oqtopus_manager.routers._file_edit import (
     _acquire_file_lock,
     _check_lock,
@@ -33,7 +34,11 @@ from oqtopus_manager.routers.backend._utils import (
 router = APIRouter(prefix="/backend", tags=["backend"])
 
 
-@router.get("/{name}/services/{service}/config", response_class=HTMLResponse)
+@router.get(
+    "/{name}/services/{service}/config",
+    response_class=HTMLResponse,
+    dependencies=[require_permission("environment.config.get")],
+)
 async def service_config(request: Request, name: str, service: str) -> HTMLResponse:
     """Render the service config editor page.
 
@@ -77,7 +82,10 @@ async def service_config(request: Request, name: str, service: str) -> HTMLRespo
     )
 
 
-@router.post("/{name}/services/{service}/config/{which}/force-unlock")
+@router.post(
+    "/{name}/services/{service}/config/{which}/force-unlock",
+    dependencies=[require_permission("environment.config.update")],
+)
 async def force_unlock_service_config(
     request: Request, name: str, service: str, which: str
 ) -> JSONResponse:
@@ -94,7 +102,10 @@ async def force_unlock_service_config(
     return _force_unlock_file(resolved / "config" / service / f"{filename}.lock")
 
 
-@router.post("/{name}/services/{service}/config/{which}/lock")
+@router.post(
+    "/{name}/services/{service}/config/{which}/lock",
+    dependencies=[require_permission("environment.config.update")],
+)
 async def acquire_service_config_lock(
     request: Request, name: str, service: str, which: str
 ) -> JSONResponse:
@@ -112,7 +123,10 @@ async def acquire_service_config_lock(
     return _acquire_file_lock(lock_path, cfg.file_edit_lock_timeout_sec)
 
 
-@router.post("/{name}/services/{service}/config/{which}/unlock")
+@router.post(
+    "/{name}/services/{service}/config/{which}/unlock",
+    dependencies=[require_permission("environment.config.update")],
+)
 async def release_service_config_lock(
     request: Request, name: str, service: str, which: str, body: _UnlockBody
 ) -> JSONResponse:
@@ -130,7 +144,10 @@ async def release_service_config_lock(
     return _release_file_lock(lock_path, body.token, cfg.file_edit_lock_timeout_sec)
 
 
-@router.post("/{name}/services/{service}/config/{which}/save")
+@router.post(
+    "/{name}/services/{service}/config/{which}/save",
+    dependencies=[require_permission("environment.config.update")],
+)
 async def save_service_config(
     request: Request, name: str, service: str, which: str, body: _SaveBody
 ) -> JSONResponse:
@@ -151,7 +168,10 @@ async def save_service_config(
     )
 
 
-@router.post("/{name}/gateway/topology-json/force-unlock")
+@router.post(
+    "/{name}/gateway/topology-json/force-unlock",
+    dependencies=[require_permission("environment.config.update")],
+)
 async def force_unlock_gateway_topology_json(
     request: Request, name: str
 ) -> JSONResponse:
@@ -166,7 +186,10 @@ async def force_unlock_gateway_topology_json(
     return _force_unlock_file(path.parent / f"{path.name}.lock")
 
 
-@router.post("/{name}/gateway/topology-json/lock")
+@router.post(
+    "/{name}/gateway/topology-json/lock",
+    dependencies=[require_permission("environment.config.update")],
+)
 async def acquire_gateway_topology_json_lock(
     request: Request, name: str
 ) -> JSONResponse:
@@ -182,7 +205,10 @@ async def acquire_gateway_topology_json_lock(
     return _acquire_file_lock(lock_path, cfg.file_edit_lock_timeout_sec)
 
 
-@router.post("/{name}/gateway/topology-json/unlock")
+@router.post(
+    "/{name}/gateway/topology-json/unlock",
+    dependencies=[require_permission("environment.config.update")],
+)
 async def release_gateway_topology_json_lock(
     request: Request, name: str, body: _UnlockBody
 ) -> JSONResponse:
@@ -198,7 +224,10 @@ async def release_gateway_topology_json_lock(
     return _release_file_lock(lock_path, body.token, cfg.file_edit_lock_timeout_sec)
 
 
-@router.post("/{name}/gateway/topology-json/save")
+@router.post(
+    "/{name}/gateway/topology-json/save",
+    dependencies=[require_permission("environment.config.update")],
+)
 async def save_gateway_topology_json(
     request: Request, name: str, body: _SaveBody
 ) -> JSONResponse:
@@ -216,7 +245,10 @@ async def save_gateway_topology_json(
     )
 
 
-@router.get("/{name}/gateway/topology-json/download")
+@router.get(
+    "/{name}/gateway/topology-json/download",
+    dependencies=[require_permission("environment.config.get")],
+)
 async def gateway_topology_json_download(request: Request, name: str) -> FileResponse:
     """Download the gateway device topology JSON file.
 

@@ -2,6 +2,8 @@
 
 OQTOPUS Manager supports pluggable authentication providers configured under the `auth` key in `config.yaml`.
 
+For role-based access control, see [Permissions](permissions.md).
+
 ## Provider overview
 
 | `provider` | Description |

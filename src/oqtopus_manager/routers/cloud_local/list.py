@@ -11,6 +11,7 @@ from fastapi import APIRouter, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
 from pydantic import ValidationError
 
+from oqtopus_manager.auth.fastapi import require_permission
 from oqtopus_manager.models.environment import Environment
 from oqtopus_manager.routers._utils import _get_config, _get_templates
 from oqtopus_manager.routers.cloud_local._utils import _build_list_context
@@ -23,7 +24,11 @@ router = APIRouter(prefix="/cloud-local", tags=["cloud-local"])
 logger = logging.getLogger(__name__)
 
 
-@router.get("", response_class=HTMLResponse)
+@router.get(
+    "",
+    response_class=HTMLResponse,
+    dependencies=[require_permission("environment.get")],
+)
 async def list_environments(request: Request) -> HTMLResponse:
     """Render the cloud-local environments list page.
 
@@ -41,7 +46,11 @@ async def list_environments(request: Request) -> HTMLResponse:
     )
 
 
-@router.get("/new", response_class=HTMLResponse)
+@router.get(
+    "/new",
+    response_class=HTMLResponse,
+    dependencies=[require_permission("environment.create")],
+)
 async def new_environment_form(request: Request) -> HTMLResponse:
     """Render the new environment form.
 
@@ -60,7 +69,10 @@ async def new_environment_form(request: Request) -> HTMLResponse:
     )
 
 
-@router.post("")
+@router.post(
+    "",
+    dependencies=[require_permission("environment.create")],
+)
 async def create_environment(
     request: Request,
     name: Annotated[str, Form()],
@@ -98,7 +110,10 @@ async def create_environment(
     return JSONResponse({"ok": True})
 
 
-@router.get("/stream")
+@router.get(
+    "/stream",
+    dependencies=[require_permission("environment.create")],
+)
 async def stream_environment_init(
     request: Request,
     name: str,
@@ -142,7 +157,11 @@ async def stream_environment_init(
     return StreamingResponse(event_stream(), media_type="text/event-stream")
 
 
-@router.delete("/{name}", response_class=HTMLResponse)
+@router.delete(
+    "/{name}",
+    response_class=HTMLResponse,
+    dependencies=[require_permission("environment.delete")],
+)
 async def delete_environment(request: Request, name: str) -> HTMLResponse:
     """Delete a cloud-local environment and its directory.
 

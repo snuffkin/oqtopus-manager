@@ -9,6 +9,9 @@ from typing import TYPE_CHECKING
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse
 
+from oqtopus_manager.auth.fastapi import require_permission
+from oqtopus_manager.auth.permissions import has_permission
+
 if TYPE_CHECKING:
     import pathlib
 
@@ -38,7 +41,11 @@ async def _run_quick(argv: list[str]) -> str:
         return "timeout"
 
 
-@router.get("", response_class=HTMLResponse)
+@router.get(
+    "",
+    response_class=HTMLResponse,
+    dependencies=[require_permission("app_settings.get")],
+)
 async def settings_page(request: Request) -> HTMLResponse:
     """Render the application settings page.
 
@@ -47,6 +54,7 @@ async def settings_page(request: Request) -> HTMLResponse:
 
     """
     cfg = request.app.state.config
+    user = request.state.user
 
     def _read(path: pathlib.Path) -> str:
         return (
@@ -74,5 +82,7 @@ async def settings_page(request: Request) -> HTMLResponse:
             "environments_content": _read(environments_path),
             "oqtopus_path": oqtopus_path,
             "oqtopus_version": oqtopus_version,
+            # True only for admin; gates future edit UI elements
+            "can_update": has_permission(user, "app_settings.update"),
         },
     )

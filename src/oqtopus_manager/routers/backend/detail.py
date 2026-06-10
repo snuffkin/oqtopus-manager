@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
 
+from oqtopus_manager.auth.fastapi import require_permission
 from oqtopus_manager.routers._utils import (
     _get_config,
     _get_environment_or_404,
@@ -112,7 +113,11 @@ def _build_args(  # noqa: C901, PLR0911, PLR0912, PLR0913, PLR0917
     raise ValueError(msg)
 
 
-@router.get("/{name}/settings-partial", response_class=HTMLResponse)
+@router.get(
+    "/{name}/settings-partial",
+    response_class=HTMLResponse,
+    dependencies=[require_permission("environment.get")],
+)
 async def get_settings_partial(request: Request, name: str) -> HTMLResponse:
     """Return the settings partial HTML for the given environment.
 
@@ -135,7 +140,10 @@ async def get_settings_partial(request: Request, name: str) -> HTMLResponse:
     )
 
 
-@router.get("/{name}/component-versions")
+@router.get(
+    "/{name}/component-versions",
+    dependencies=[require_permission("environment.get")],
+)
 async def component_versions_list(
     request: Request,
     name: str,
@@ -169,7 +177,10 @@ async def component_versions_list(
     return JSONResponse({"versions": versions})
 
 
-@router.get("/{name}/stream")
+@router.get(
+    "/{name}/stream",
+    dependencies=[require_permission("environment.service.manage")],
+)
 async def backend_stream(  # noqa: PLR0913, PLR0917
     request: Request,
     name: str,
@@ -210,7 +221,11 @@ async def backend_stream(  # noqa: PLR0913, PLR0917
     return StreamingResponse(event_stream(), media_type="text/event-stream")
 
 
-@router.get("/{name}", response_class=HTMLResponse)
+@router.get(
+    "/{name}",
+    response_class=HTMLResponse,
+    dependencies=[require_permission("environment.get")],
+)
 async def get_environment(request: Request, name: str) -> HTMLResponse:
     """Render the environment detail page.
 

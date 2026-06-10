@@ -11,6 +11,7 @@ if TYPE_CHECKING:
     import pathlib
     from collections.abc import Sequence
 
+from oqtopus_manager.auth.fastapi import require_permission
 from oqtopus_manager.routers._file_edit import (
     _acquire_file_lock,
     _check_lock,
@@ -36,14 +37,20 @@ def make_dotenv_router(url_prefix: str, tags: Sequence[str]) -> APIRouter:
     """
     router = APIRouter(prefix=url_prefix, tags=tags)  # type: ignore[arg-type]
 
-    @router.post("/{name}/dotenv/force-unlock")
+    @router.post(
+        "/{name}/dotenv/force-unlock",
+        dependencies=[require_permission("environment.config.update")],
+    )
     async def force_unlock_dotenv(request: Request, name: str) -> JSONResponse:
         cfg = _get_config(request)
         env = _get_environment_or_404(name, cfg)
         resolved = env.resolved_root_path(cfg.default_environment_base_path)
         return _force_unlock_file(resolved / "config" / ".env.lock")
 
-    @router.post("/{name}/dotenv/lock")
+    @router.post(
+        "/{name}/dotenv/lock",
+        dependencies=[require_permission("environment.config.update")],
+    )
     async def acquire_dotenv_lock(request: Request, name: str) -> JSONResponse:
         cfg = _get_config(request)
         env = _get_environment_or_404(name, cfg)
@@ -52,7 +59,10 @@ def make_dotenv_router(url_prefix: str, tags: Sequence[str]) -> APIRouter:
             resolved / "config" / ".env.lock", cfg.file_edit_lock_timeout_sec
         )
 
-    @router.post("/{name}/dotenv/unlock")
+    @router.post(
+        "/{name}/dotenv/unlock",
+        dependencies=[require_permission("environment.config.update")],
+    )
     async def release_dotenv_lock(
         request: Request, name: str, body: _UnlockBody
     ) -> JSONResponse:
@@ -65,7 +75,10 @@ def make_dotenv_router(url_prefix: str, tags: Sequence[str]) -> APIRouter:
             cfg.file_edit_lock_timeout_sec,
         )
 
-    @router.post("/{name}/dotenv/save")
+    @router.post(
+        "/{name}/dotenv/save",
+        dependencies=[require_permission("environment.config.update")],
+    )
     async def save_dotenv(request: Request, name: str, body: _SaveBody) -> JSONResponse:
         cfg = _get_config(request)
         env = _get_environment_or_404(name, cfg)
@@ -80,7 +93,10 @@ def make_dotenv_router(url_prefix: str, tags: Sequence[str]) -> APIRouter:
             cfg.file_edit_lock_timeout_sec,
         )
 
-    @router.get("/{name}/dotenv/download")
+    @router.get(
+        "/{name}/dotenv/download",
+        dependencies=[require_permission("environment.config.get")],
+    )
     async def environment_dotenv_download(request: Request, name: str) -> FileResponse:
         cfg = _get_config(request)
         env = _get_environment_or_404(name, cfg)
@@ -93,7 +109,11 @@ def make_dotenv_router(url_prefix: str, tags: Sequence[str]) -> APIRouter:
             raise HTTPException(status_code=404, detail="config/.env not found.")
         return FileResponse(path=dotenv_path, filename=".env", media_type="text/plain")
 
-    @router.get("/{name}/dotenv", response_class=HTMLResponse)
+    @router.get(
+        "/{name}/dotenv",
+        response_class=HTMLResponse,
+        dependencies=[require_permission("environment.config.get")],
+    )
     async def environment_dotenv(request: Request, name: str) -> HTMLResponse:
         cfg = _get_config(request)
         env = _get_environment_or_404(name, cfg)

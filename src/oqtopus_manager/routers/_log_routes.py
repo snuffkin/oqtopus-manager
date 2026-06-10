@@ -11,6 +11,7 @@ if TYPE_CHECKING:
     import pathlib
     from collections.abc import Callable, Sequence
 
+from oqtopus_manager.auth.fastapi import require_permission
 from oqtopus_manager.routers._utils import (
     _get_config,
     _get_environment_or_404,
@@ -36,7 +37,11 @@ def make_log_router(
     """
     router = APIRouter(prefix=url_prefix, tags=tags)  # type: ignore[arg-type]
 
-    @router.get("/{name}/services/{service}/log", response_class=HTMLResponse)
+    @router.get(
+        "/{name}/services/{service}/log",
+        response_class=HTMLResponse,
+        dependencies=[require_permission("environment.log.get")],
+    )
     async def service_log(request: Request, name: str, service: str) -> HTMLResponse:
         cfg = _get_config(request)
         env = _get_environment_or_404(name, cfg)
@@ -54,7 +59,10 @@ def make_log_router(
             },
         )
 
-    @router.get("/{name}/services/{service}/log/stream")
+    @router.get(
+        "/{name}/services/{service}/log/stream",
+        dependencies=[require_permission("environment.log.get")],
+    )
     async def service_log_stream(
         request: Request, name: str, service: str
     ) -> StreamingResponse:
@@ -69,7 +77,10 @@ def make_log_router(
             media_type="text/event-stream",
         )
 
-    @router.get("/{name}/services/{service}/log/download")
+    @router.get(
+        "/{name}/services/{service}/log/download",
+        dependencies=[require_permission("environment.log.get")],
+    )
     async def service_log_download(
         request: Request, name: str, service: str
     ) -> FileResponse:

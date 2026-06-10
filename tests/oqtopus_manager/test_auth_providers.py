@@ -170,6 +170,8 @@ _HEADER_AUTH_CONFIG = {
                 "audience": "test-audience",
             },
         },
+        # Map test groups to recognized permission roles
+        "role_mappings": {"test.admin": "operator"},
     },
     "enable_debug_endpoint": False,
 }

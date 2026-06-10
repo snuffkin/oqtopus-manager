@@ -17,6 +17,7 @@ It allows operators to manage multiple OQTOPUS backend environments running on a
 - [Getting Started](./usage/getting_started.md)
 - [Configuration](./usage/configuration.md)
 - [Authentication](./usage/authentication.md)
+- [Permissions](./usage/permissions.md)
 
 ## API reference
 

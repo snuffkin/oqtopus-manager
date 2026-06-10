@@ -5,12 +5,17 @@ import pathlib
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse
 
+from oqtopus_manager.auth.fastapi import require_permission
 from oqtopus_manager.routers._utils import _get_config
 
 router = APIRouter(prefix="/browse", tags=["browse"])
 
 
-@router.get("", response_class=HTMLResponse)
+@router.get(
+    "",
+    response_class=HTMLResponse,
+    dependencies=[require_permission("environment.create")],
+)
 async def browse(request: Request, path: str = "") -> HTMLResponse:
     """Return an HTML directory listing for the given path.
 
