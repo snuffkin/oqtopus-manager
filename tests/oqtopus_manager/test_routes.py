@@ -443,6 +443,47 @@ def test_settings_page_renders(client: TestClient) -> None:
     assert b"oqtopus" in resp.content or resp.status_code == 200
 
 
+def test_settings_lock_acquire_and_release(
+    client: TestClient, tmp_path: pathlib.Path
+) -> None:
+    resp = client.post("/settings/config/lock")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["ok"] is True
+    token = data["token"]
+
+    resp = client.post(
+        "/settings/config/unlock",
+        json={"token": token},
+        headers={"Content-Type": "application/json"},
+    )
+    assert resp.json()["ok"] is True
+
+
+def test_settings_save_config(client: TestClient, tmp_path: pathlib.Path) -> None:
+    resp = client.post("/settings/config/lock")
+    token = resp.json()["token"]
+
+    new_content = (tmp_path / "config.yaml").read_text(encoding="utf-8")
+    resp = client.post(
+        "/settings/config/save",
+        json={"token": token, "content": new_content},
+        headers={"Content-Type": "application/json"},
+    )
+    assert resp.json()["ok"] is True
+
+
+def test_settings_invalid_which_returns_400(client: TestClient) -> None:
+    resp = client.post("/settings/invalid/lock")
+    assert resp.status_code == 400
+
+
+def test_settings_force_unlock(client: TestClient) -> None:
+    client.post("/settings/config/lock")
+    resp = client.post("/settings/config/force-unlock")
+    assert resp.json()["ok"] is True
+
+
 # ── debug endpoint ────────────────────────────────────────────────────────────
 
 

@@ -76,7 +76,7 @@ All toolbar/summary-row buttons follow these rules — do not invent new variant
 Every editable file uses the same lock/edit/diff/save flow.
 
 - **JS pattern reference**: `dotenv.html` (inline functions for single editor; `makeEditor()` factory for multi-editor)
-- **Python route reference**: dotenv routes in `environments.py` — thin wrappers that call the shared helpers in the "Shared Helpers" section below
+- **Python route reference**: `routers/backend/dotenv.py` and `routers/app_settings.py` — thin wrappers that call the shared helpers in the "Shared Helpers" section below
 - **Jinja2 template reference for multi-editor pages**: `service_config.html` uses the `editor_section` macro; add new editors via a macro call, not by copying HTML blocks
 
 ### Lock state rules (always enforce)
@@ -139,13 +139,28 @@ Use the `makeEditor(opts)` factory (see `service_config.html`) when a page has m
 
 Use these helpers when implementing new routes — do not re-implement inline:
 
-### `routers/_shared.py`
+### `routers/_utils.py`
 
 | Helper | Purpose |
 |---|---|
 | `_get_config(request)` | Return `request.app.state.config` |
 | `_get_templates(request)` | Return `request.app.state.templates` |
 | `_get_environment_or_404(name, cfg)` | Load environment by name or raise 404 |
+
+### `auth/permissions.py`
+
+| Helper | Purpose |
+|---|---|
+| `has_permission(user, permission)` | Return True if the user holds a role that grants the permission |
+| `ROLE_PERMISSIONS` | Mapping of role → frozenset of permission strings |
+
+### `auth/fastapi/depends.py`
+
+| Helper | Purpose |
+|---|---|
+| `get_current_user(request)` | Extract `AuthUser` from `request.state.user` |
+| `CurrentUser` | `Annotated` type alias for use in route signatures |
+| `require_permission(permission)` | Return a `Depends` that raises 403 if the user lacks the permission |
 
 ### `routers/_file_edit.py`
 
@@ -164,6 +179,10 @@ Use these helpers when implementing new routes — do not re-implement inline:
 | Helper | Purpose |
 |---|---|
 | `_read_path_from_yaml(yaml_file, keys, env_root)` | Safely traverse nested YAML keys → `Path \| None` |
+
+### `routers/_dotenv_routes.py` / `routers/_log_routes.py`
+
+Shared route factories used by `backend/dotenv.py`, `cloud_local/dotenv.py`, `backend/log.py`, and `cloud_local/log.py`. Both packages delegate to these factories to avoid code duplication.
 
 Route handlers for the file-edit pattern are thin wrappers that call the shared helpers above.
 
@@ -229,6 +248,9 @@ Each template type has its own URL prefix. Routes within a template group are in
 |---|---|---|
 | `routers/_utils.py` | — | Shared helpers: `_get_config`, `_get_templates`, `_get_environment_or_404` |
 | `routers/_file_edit.py` | — | Shared file-edit helpers + `_UnlockBody` / `_SaveBody` models |
+| `routers/_dotenv_routes.py` | — | Shared dotenv route factory (used by backend and cloud_local) |
+| `routers/_log_routes.py` | — | Shared log route factory (used by backend and cloud_local) |
+| `routers/meta.py` | `/version`, `/app-icon`, `/favicon.ico`, `/api-docs` | App meta routes (version, assets, docs) |
 | `routers/backend/list.py` | `/backend` | Environment list, new form, create, delete, init stream |
 | `routers/backend/detail.py` | `/backend` | Environment detail, settings partial, oqtopus command stream, component versions |
 | `routers/backend/dotenv.py` | `/backend` | .env editor, lock/save/download |

@@ -169,6 +169,29 @@ Role display colours in the UI:
 
 See [enable_debug_endpoint](configuration.md#enable_debug_endpoint) in the configuration reference.
 
+## Design notes
+
+### Why not standard FastAPI OAuth2 scopes?
+
+FastAPI provides `Security(dep, scopes=[...])` and `SecurityScopes` for scope-based access control,
+which integrates with the OpenAPI/Swagger UI. OQTOPUS Manager deliberately does not use this pattern
+for the following reasons:
+
+**Different authorization model.** FastAPI's OAuth2 scopes are designed for flows where the
+*client* requests specific scopes at login time (e.g. `scope=items:read`), and the server
+verifies the JWT contains those scopes. OQTOPUS Manager uses RBAC: the *server* maps
+proxy-injected roles to permissions at request time. The client has no role in choosing scopes.
+
+**Non-standard token injection.** Tokens are injected by a trusted reverse proxy
+(e.g. oauth2-proxy, Cloudflare Access), not obtained through an OAuth2 token endpoint.
+FastAPI's `OAuth2PasswordBearer` and `HTTPBearer` schemes assume a specific flow (token endpoint
+or `Authorization: Bearer`) that does not match custom headers such as `cf-access-jwt-assertion`.
+
+**Consequence.** Permission enforcement uses `Depends(require_permission("scope"))` instead of
+`Security(dep, scopes=["scope"])`. The application works correctly but required scopes are not
+reflected in the OpenAPI documentation. This trade-off is accepted because the API is not
+intended for direct third-party consumption.
+
 ## Example: Amazon Cognito with oauth2-proxy
 
 This example shows a complete setup using Amazon Cognito as the identity provider and [oauth2-proxy](https://oauth2-proxy.github.io/oauth2-proxy/) as the reverse proxy.

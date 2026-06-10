@@ -1,0 +1,108 @@
+function _formatTs(ts) {
+  var d = new Date(ts * 1000);
+  var pad = function(n) { return String(n).padStart(2, '0'); };
+  return d.getFullYear() + '-' + pad(d.getMonth()+1) + '-' + pad(d.getDate()) +
+    ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds());
+}
+
+function _escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function _lcs(a, b) {
+  var m = a.length, n = b.length;
+  var dp = Array.from({length: m+1}, function() { return new Array(n+1).fill(0); });
+  for (var row = 1; row <= m; row++)
+    for (var col = 1; col <= n; col++)
+      dp[row][col] = a[row-1] === b[col-1] ? dp[row-1][col-1]+1 : Math.max(dp[row-1][col], dp[row][col-1]);
+  var res = [], r = m, c = n;
+  while (r > 0 || c > 0) {
+    if (r > 0 && c > 0 && a[r-1] === b[c-1]) { res.unshift({t:'=', l:a[r-1]}); r--; c--; }
+    else if (c > 0 && (r === 0 || dp[r][c-1] >= dp[r-1][c])) { res.unshift({t:'+', l:b[c-1]}); c--; }
+    else { res.unshift({t:'-', l:a[r-1]}); r--; }
+  }
+  return res;
+}
+
+function makeEditor(o) {
+  var raw = o.rawContent, lang = o.language || 'yaml', baseUrl = o.baseUrl, timeoutSec = o.lockTimeoutSec;
+  var details    = document.getElementById(o.detailsId);
+  var viewEl     = document.getElementById(o.viewId);
+  var editEl     = document.getElementById(o.editId);
+  var diffEl     = document.getElementById(o.diffId);
+  var editPre    = document.getElementById(o.editPreId);
+  var editTa     = document.getElementById(o.editTaId);
+  var diffOut    = document.getElementById(o.diffOutId);
+  var editBtn    = document.getElementById(o.editBtnId);
+  var previewBtn = document.getElementById(o.previewBtnId);
+  var cancelBtn  = document.getElementById(o.cancelBtnId);
+  var dlBtn      = document.getElementById(o.dlBtnId);
+  var badge      = document.getElementById(o.badgeId);
+  var badgeText  = document.getElementById(o.badgeTextId);
+  var fuBtn      = document.getElementById(o.fuBtnId);
+  var lockToken = null, lockTs = null, lockSince = null, timer = null;
+
+  function _updateBadge() {
+    if (!lockTs) return;
+    var rem = Math.max(0, Math.floor(timeoutSec - (Date.now()/1000 - lockTs)));
+    badgeText.textContent = 'Locked since ' + lockSince + ' · ' + rem + 's remaining';
+    if (rem === 0) { _stopTimer(); if (!lockToken) { fuBtn.classList.add('hidden'); editBtn.classList.remove('hidden'); } }
+  }
+  function _startTimer(since, ts) { lockSince = since; lockTs = ts; _updateBadge(); timer = setInterval(_updateBadge, 1000); badge.classList.remove('hidden'); }
+  function _stopTimer() { clearInterval(timer); timer = null; lockTs = null; badge.classList.add('hidden'); }
+  function showLockBadgeOther(since, ts) { editBtn.classList.add('hidden'); fuBtn.classList.remove('hidden'); _startTimer(since, ts); }
+  function _syncHL() { editPre.innerHTML = hljs.highlight(editTa.value, {language: lang}).value + '\n'; }
+  function _enterEdit(token, ts) {
+    lockToken = token; editBtn.classList.add('hidden'); dlBtn.classList.add('hidden');
+    previewBtn.classList.remove('hidden'); cancelBtn.classList.remove('hidden');
+    _startTimer(_formatTs(ts), ts); viewEl.classList.add('hidden'); editEl.classList.remove('hidden');
+    editTa.value = raw; _syncHL(); editTa.focus();
+  }
+  function startEdit() {
+    fetch(baseUrl + '/lock', {method: 'POST'}).then(function(r) { return r.json(); })
+      .then(function(d) { if (d.ok) { _enterEdit(d.token, d.acquired_ts); } else { showLockBadgeOther(d.locked_since, d.locked_since_ts); } });
+  }
+  function _doCancel() {
+    fetch(baseUrl + '/unlock', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({token:lockToken})}).finally(function() {
+      lockToken = null; _stopTimer(); fuBtn.classList.add('hidden'); editBtn.classList.remove('hidden');
+      previewBtn.classList.add('hidden'); cancelBtn.classList.add('hidden'); dlBtn.classList.remove('hidden');
+      editEl.classList.add('hidden'); diffEl.classList.add('hidden'); viewEl.classList.remove('hidden');
+    });
+  }
+  function cancelEdit() { if (editTa.value !== raw) { _discardCb = _doCancel; document.getElementById('discard-modal').classList.remove('hidden'); } else { _doCancel(); } }
+  function cancelEditFromDiff() { _discardCb = _doCancel; document.getElementById('discard-modal').classList.remove('hidden'); }
+  function openForceUnlockModal() {
+    _forceUnlockCb = function() {
+      fetch(baseUrl + '/force-unlock', {method:'POST'}).then(function(r) { return r.json(); })
+        .then(function() { _stopTimer(); fuBtn.classList.add('hidden'); return fetch(baseUrl + '/lock', {method:'POST'}); })
+        .then(function(r) { return r.json(); }).then(function(d) { if (d.ok) _enterEdit(d.token, d.acquired_ts); });
+    };
+    document.getElementById('force-unlock-modal').classList.remove('hidden');
+  }
+  function showDiff() {
+    var diff = _lcs(raw.split('\n'), editTa.value.split('\n'));
+    diffOut.innerHTML = diff.map(function(d) {
+      if (d.t==='+') return '<div class="bg-green-50 text-green-800"><span class="select-none text-green-400 mr-2">+</span>' + _escHtml(d.l) + '</div>';
+      if (d.t==='-') return '<div class="bg-red-50 text-red-800"><span class="select-none text-red-400 mr-2">-</span>' + _escHtml(d.l) + '</div>';
+      return '<div class="text-gray-600"><span class="select-none text-gray-300 mr-2"> </span>' + _escHtml(d.l) + '</div>';
+    }).join('');
+    editEl.classList.add('hidden'); previewBtn.classList.add('hidden'); cancelBtn.classList.add('hidden'); diffEl.classList.remove('hidden');
+  }
+  function backToEdit() { diffEl.classList.add('hidden'); editEl.classList.remove('hidden'); previewBtn.classList.remove('hidden'); cancelBtn.classList.remove('hidden'); }
+  function confirmSave() {
+    fetch(baseUrl + '/save', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({token:lockToken, content:editTa.value})})
+      .then(function(r) { return r.json(); }).then(function(d) { if (d.ok) window.location.reload(); else alert('Save failed: ' + (d.error || 'Unknown error')); });
+  }
+  function toggleFullscreen() {
+    var fs = details.classList.toggle('is-fullscreen');
+    document.getElementById(o.fsExpandId).classList.toggle('hidden', fs);
+    document.getElementById(o.fsCollapseId).classList.toggle('hidden', !fs);
+    if (fs && !details.open) details.setAttribute('open', '');
+  }
+  editTa.addEventListener('input', _syncHL);
+  editTa.addEventListener('scroll', function() { editPre.scrollTop = editTa.scrollTop; editPre.scrollLeft = editTa.scrollLeft; });
+  window.addEventListener('beforeunload', function() {
+    if (lockToken) fetch(baseUrl + '/unlock', {method:'POST', keepalive:true, headers:{'Content-Type':'application/json'}, body:JSON.stringify({token:lockToken})});
+  });
+  return {startEdit, cancelEdit, cancelEditFromDiff, openForceUnlockModal, showDiff, backToEdit, confirmSave, toggleFullscreen, showLockBadgeOther};
+}
