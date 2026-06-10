@@ -57,3 +57,32 @@ def has_permission(
         if "*" in role_perms or permission in role_perms:
             return True
     return False
+
+
+# Module-level alias used inside AuthPermissions.has_permission to avoid
+# ambiguity with the method of the same name.
+_has_permission = has_permission
+
+
+class AuthPermissions:
+    """Framework-agnostic permission checker bound to a role-permissions mapping.
+
+    Instantiate once with the resolved mapping and use
+    :meth:`has_permission` in route handlers or templates.
+
+    For FastAPI route dependencies, use :class:`auth.fastapi.FastAPIAuthPermissions`
+    which extends this class with a :meth:`require` method.
+
+    """
+
+    def __init__(self, role_permissions: dict[str, frozenset[str]]) -> None:
+        self._role_permissions = role_permissions
+
+    def has_permission(self, user: AuthUser | None, permission: str) -> bool:
+        """Return True if the user holds the given permission.
+
+        Returns:
+            True if the user has the permission, False otherwise.
+
+        """
+        return _has_permission(user, permission, self._role_permissions)

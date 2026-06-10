@@ -10,7 +10,6 @@ from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 
 from oqtopus_manager.auth.fastapi import require_permission
-from oqtopus_manager.auth.permissions import has_permission
 from oqtopus_manager.routers._file_edit import (
     _acquire_file_lock,
     _check_lock,
@@ -137,8 +136,8 @@ async def settings_page(request: Request) -> HTMLResponse:
             "environments_content": _read(environments_path),
             "oqtopus_path": oqtopus_path,
             "oqtopus_version": oqtopus_version,
-            "can_update": has_permission(
-                user, "app_settings.update", request.app.state.role_permissions
+            "can_update": request.app.state.permissions.has_permission(
+                user, "app_settings.update"
             ),
             **lock_ctx,
         },

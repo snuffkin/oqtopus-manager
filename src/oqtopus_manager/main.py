@@ -11,7 +11,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from oqtopus_util.config import load_config, setup_logging
 
-from oqtopus_manager.auth.fastapi import AuthMiddleware
+from oqtopus_manager.auth.fastapi import AuthMiddleware, FastAPIAuthPermissions
 from oqtopus_manager.config import AppConfig
 from oqtopus_manager.routers import app_settings, browse, debug, me, meta
 from oqtopus_manager.routers import backend as backend_pkg
@@ -57,7 +57,7 @@ def create_app(config_path: pathlib.Path) -> FastAPI:
     templates.env.globals["environment_templates"] = cfg.environment_templates
     templates.env.globals["sidebar_links"] = cfg.sidebar_links
     app.state.templates = templates
-    app.state.role_permissions = cfg.role_permissions
+    app.state.permissions = FastAPIAuthPermissions(cfg.role_permissions)
 
     # Serve operator-supplied assets (icons, images) from the runtime working directory
     assets_dir = pathlib.Path.cwd() / "assets"

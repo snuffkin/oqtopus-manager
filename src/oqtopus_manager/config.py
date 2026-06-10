@@ -8,9 +8,7 @@ from pydantic import BaseModel
 
 from oqtopus_manager.auth import (
     AuthConfig,
-    HeaderProviderConfig,
-    SignatureVerificationConfig,
-    parse_none_provider_config,
+    parse_auth_config,
     parse_role_permissions,
 )
 from oqtopus_manager.models.environment import Environment
@@ -54,9 +52,6 @@ class AppConfig(BaseModel):
         Returns:
             The loaded AppConfig instance.
 
-        Raises:
-            ValueError: If required configuration fields are missing or invalid.
-
         """
         raw = load_config(str(config_path))
 
@@ -64,44 +59,7 @@ class AppConfig(BaseModel):
         server = raw.get("server", {})
         behavior = raw.get("behavior", {})
         appearance = raw.get("appearance", {})
-        auth_raw = raw.get("auth", {})
-        provider = auth_raw.get("provider", "none")
-        header_cfg: HeaderProviderConfig | None = None
-        if provider == "header":
-            header_raw = auth_raw.get("header") or {}
-            sig_ver_raw = header_raw.get("signature_verification") or {}
-            sig_ver = (
-                SignatureVerificationConfig(
-                    enabled=bool(sig_ver_raw.get("enabled", False)),
-                    issuer=sig_ver_raw.get("issuer", ""),
-                    jwks_url=sig_ver_raw.get("jwks_url"),
-                    audience=sig_ver_raw.get("audience", ""),
-                )
-                if sig_ver_raw
-                else None
-            )
-            for key in ("jwt_header", "user_claim"):
-                if not header_raw.get(key):
-                    msg = f"auth.header.{key} is required when provider=header"
-                    raise ValueError(msg)
-            header_cfg = HeaderProviderConfig(
-                jwt_header=header_raw["jwt_header"],
-                user_claim=header_raw["user_claim"],
-                roles_claim=header_raw.get("roles_claim", "cognito:groups"),
-                allow_raw_roles=header_raw.get("allow_raw_roles") or [],
-                signature_verification=sig_ver,
-                signout_url=header_raw.get("signout_url"),
-            )
-        auth = AuthConfig(
-            provider=provider,
-            none=(
-                parse_none_provider_config(auth_raw.get("none") or {})
-                if provider == "none"
-                else None
-            ),
-            header=header_cfg,
-            role_mappings=auth_raw.get("role_mappings") or {},
-        )
+        auth = parse_auth_config(raw.get("auth", {}))
         default_base = cwd / pathlib.Path(server["default_environment_base_path"])
         environments_file = cwd / pathlib.Path(server["environments_file"])
 

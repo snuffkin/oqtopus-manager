@@ -44,6 +44,69 @@ class AuthConfig(BaseModel):
     role_mappings: dict[str, str] = {}
 
 
+def parse_header_provider_config(raw: dict) -> HeaderProviderConfig:
+    """Parse a ``HeaderProviderConfig`` from a raw dict, raising on missing fields.
+
+    Returns:
+        A validated ``HeaderProviderConfig`` instance.
+
+    Raises:
+        ValueError: If ``jwt_header`` or ``user_claim`` is missing.
+
+    """
+    for key in ("jwt_header", "user_claim"):
+        if not raw.get(key):
+            msg = f"auth.header.{key} is required when provider=header"
+            raise ValueError(msg)
+    sig_ver_raw = raw.get("signature_verification") or {}
+    sig_ver = (
+        SignatureVerificationConfig(
+            enabled=bool(sig_ver_raw.get("enabled", False)),
+            issuer=sig_ver_raw.get("issuer", ""),
+            jwks_url=sig_ver_raw.get("jwks_url"),
+            audience=sig_ver_raw.get("audience", ""),
+        )
+        if sig_ver_raw
+        else None
+    )
+    return HeaderProviderConfig(
+        jwt_header=raw["jwt_header"],
+        user_claim=raw["user_claim"],
+        roles_claim=raw.get("roles_claim", "cognito:groups"),
+        allow_raw_roles=raw.get("allow_raw_roles") or [],
+        signature_verification=sig_ver,
+        signout_url=raw.get("signout_url"),
+    )
+
+
+def parse_auth_config(raw: dict) -> AuthConfig:
+    """Parse an ``AuthConfig`` from a raw dict (e.g., loaded from YAML).
+
+    Delegates to ``parse_none_provider_config`` and
+    ``parse_header_provider_config`` which raise ``ValueError`` when required
+    fields are missing.
+
+    Returns:
+        A validated ``AuthConfig`` instance.
+
+    """
+    provider = raw.get("provider", "none")
+    return AuthConfig(
+        provider=provider,
+        none=(
+            parse_none_provider_config(raw.get("none") or {})
+            if provider == "none"
+            else None
+        ),
+        header=(
+            parse_header_provider_config(raw.get("header") or {})
+            if provider == "header"
+            else None
+        ),
+        role_mappings=raw.get("role_mappings") or {},
+    )
+
+
 def parse_none_provider_config(raw: dict) -> NoneProviderConfig:
     """Parse a ``NoneProviderConfig`` from a raw dict, raising on missing fields.
 
