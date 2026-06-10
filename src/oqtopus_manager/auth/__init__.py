@@ -11,12 +11,11 @@ from .config import (
 )
 from .header_provider import HeaderProvider
 from .null_provider import NullProvider
-from .permissions import AuthPermissions, has_permission, parse_role_permissions
+from .permissions import Permissions, has_permission, parse_role_permissions
 from .providers import AuthenticationError, AuthProvider, AuthUser, build_provider
 
 __all__ = [
     "AuthConfig",
-    "AuthPermissions",
     "AuthProvider",
     "AuthUser",
     "AuthenticationError",
@@ -24,6 +23,7 @@ __all__ = [
     "HeaderProviderConfig",
     "NoneProviderConfig",
     "NullProvider",
+    "Permissions",
     "SignatureVerificationConfig",
     "build_provider",
     "has_permission",

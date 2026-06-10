@@ -97,6 +97,39 @@ auth:
 |-----|------|----------|---------|-------------|
 | `provider` | string | No | `none` | Authentication provider. `none` disables auth; `header` reads identity from HTTP headers set by a reverse proxy. |
 
+### auth.none
+
+Active when `provider: none`. Configures the virtual user used for permission checks when authentication is disabled.
+
+| Key | Type | Required | Default | Description |
+|-----|------|----------|---------|-------------|
+| `default_account` | string | **Yes** | — | Account name shown in `/me` and `/debug` pages. |
+| `default_roles` | list of strings | **Yes** | — | Roles granted to every request. Must match names defined in `permissions`. |
+
+---
+
+## permissions
+
+Role-to-permission mapping. See [Permissions](permissions.md) for the full reference.
+
+```yaml
+permissions:
+  _extends_:
+    admin: operator        # admin inherits all operator permissions
+
+  operator:
+    - environment.get
+    - app_settings.get
+    # ... (full list in permissions.md)
+  admin:
+    - app_settings.update  # additions only
+```
+
+| Key | Type | Required | Description |
+|-----|------|----------|-------------|
+| `_extends_` | mapping | No | Single-level inheritance. `admin: operator` means admin gets all operator permissions plus its own. |
+| `<role>` | list of strings | **Yes** | Permission strings granted to this role. At least one role must be defined. |
+
 ---
 
 ## enable_debug_endpoint

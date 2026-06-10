@@ -2,7 +2,7 @@
 
 from .depends import (
     CurrentUser,
-    FastAPIAuthPermissions,
+    FastAPIPermissions,
     get_current_user,
     require_permission,
 )
@@ -11,7 +11,7 @@ from .middleware import AuthMiddleware
 __all__ = [
     "AuthMiddleware",
     "CurrentUser",
-    "FastAPIAuthPermissions",
+    "FastAPIPermissions",
     "get_current_user",
     "require_permission",
 ]

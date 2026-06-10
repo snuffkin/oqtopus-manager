@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, Annotated
 from fastapi import Depends, HTTPException, Request
 
 from ..base import AuthUser  # noqa: TID252
-from ..permissions import AuthPermissions, has_permission  # noqa: TID252
+from ..permissions import Permissions, has_permission  # noqa: TID252
 
 if TYPE_CHECKING:
     from fastapi.params import Depends as DependsType
@@ -26,15 +26,15 @@ def get_current_user(request: Request) -> AuthUser | None:
 CurrentUser = Annotated[AuthUser | None, Depends(get_current_user)]
 
 
-class FastAPIAuthPermissions(AuthPermissions):
-    """FastAPI-aware permission checker that extends :class:`AuthPermissions`.
+class FastAPIPermissions(Permissions):
+    """FastAPI-aware permission checker that extends :class:`Permissions`.
 
     Adds :meth:`require`, a FastAPI dependency factory, to the framework-agnostic
     :meth:`has_permission` inherited from the base class.
 
     Create one instance per application and use it as follows::
 
-        permissions = FastAPIAuthPermissions(role_permissions)
+        permissions = FastAPIPermissions(role_permissions)
 
         @router.get("/settings", dependencies=[permissions.require("app_settings.get")])
         async def settings(request: Request) -> HTMLResponse:
@@ -64,14 +64,14 @@ class FastAPIAuthPermissions(AuthPermissions):
 def require_permission(permission: str) -> DependsType:
     """Return a FastAPI dependency that enforces the given permission.
 
-    Reads the :class:`FastAPIAuthPermissions` instance from
+    Reads the :class:`FastAPIPermissions` instance from
     ``request.app.state.permissions``.  This is a convenience function for
     applications where route modules are imported before the
-    ``FastAPIAuthPermissions`` instance is constructed (e.g. when routes are
+    ``FastAPIPermissions`` instance is constructed (e.g. when routes are
     registered inside an application factory).
 
     For new projects that control the import order, prefer
-    ``FastAPIAuthPermissions.require()`` instead.
+    ``FastAPIPermissions.require()`` instead.
 
     Returns:
         A ``Depends`` instance that raises 403 if the check fails.
@@ -79,7 +79,7 @@ def require_permission(permission: str) -> DependsType:
     """
 
     def check(request: Request, user: CurrentUser) -> AuthUser | None:
-        permissions: FastAPIAuthPermissions = request.app.state.permissions
+        permissions: FastAPIPermissions = request.app.state.permissions
         if not permissions.has_permission(user, permission):
             raise HTTPException(status_code=403, detail="Insufficient permissions")
         return user

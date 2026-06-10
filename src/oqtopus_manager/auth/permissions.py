@@ -59,18 +59,18 @@ def has_permission(
     return False
 
 
-# Module-level alias used inside AuthPermissions.has_permission to avoid
+# Module-level alias used inside Permissions.has_permission to avoid
 # ambiguity with the method of the same name.
 _has_permission = has_permission
 
 
-class AuthPermissions:
+class Permissions:
     """Framework-agnostic permission checker bound to a role-permissions mapping.
 
     Instantiate once with the resolved mapping and use
     :meth:`has_permission` in route handlers or templates.
 
-    For FastAPI route dependencies, use :class:`auth.fastapi.FastAPIAuthPermissions`
+    For FastAPI route dependencies, use :class:`auth.fastapi.FastAPIPermissions`
     which extends this class with a :meth:`require` method.
 
     """

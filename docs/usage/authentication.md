@@ -16,10 +16,22 @@ For role-based access control, see [Permissions](permissions.md).
 ```yaml
 auth:
   provider: none
+  none:
+    default_account: admin_user   # account name shown in /me and debug pages
+    default_roles: [admin]        # roles granted when auth is disabled
 ```
 
-No additional configuration is required.
-`request.state.user` is `None` for every request, and the **My Account** page is hidden from the sidebar.
+Authentication is disabled. A virtual user with the configured `default_account` and
+`default_roles` is used so that permission checks and template flags behave identically
+to a real session with those roles. The **My Account** page and user widget are hidden
+from the sidebar.
+
+### none.*
+
+| Key | Type | Required | Default | Description |
+|-----|------|----------|---------|-------------|
+| `default_account` | string | **Yes** | — | Account name shown in the `/me` and `/debug` pages when auth is disabled. |
+| `default_roles` | list of strings | **Yes** | — | Roles granted to every request when auth is disabled. Must match role names defined in `permissions`. |
 
 ## provider: header
 
