@@ -9,8 +9,9 @@ from pydantic import BaseModel
 from oqtopus_manager.auth import (
     AuthConfig,
     HeaderProviderConfig,
-    NoneProviderConfig,
     SignatureVerificationConfig,
+    parse_none_provider_config,
+    parse_role_permissions,
 )
 from oqtopus_manager.models.environment import Environment
 
@@ -41,38 +42,6 @@ class AppConfig(BaseModel):
     auth: AuthConfig = AuthConfig()
     enable_debug_endpoint: bool
     role_permissions: dict[str, frozenset[str]]
-
-    @staticmethod
-    def _parse_permissions(raw: dict) -> dict[str, frozenset[str]]:
-        """Resolve permissions config including single-level _extends_ inheritance.
-
-        Returns:
-            Mapping of role name to resolved frozenset of permissions.
-
-        """
-        extends: dict[str, str] = raw.get("_extends_") or {}
-        base: dict[str, set[str]] = {
-            key: set(value)
-            for key, value in raw.items()
-            if key != "_extends_" and isinstance(value, list)
-        }
-        resolved: dict[str, frozenset[str]] = {}
-        for role, perms in base.items():
-            parent = extends.get(role)
-            parent_perms = base.get(parent, set()) if parent else set()
-            resolved[role] = frozenset(perms | parent_perms)
-        return resolved
-
-    @staticmethod
-    def _parse_none_cfg(raw: dict) -> NoneProviderConfig:
-        for key in ("default_account", "default_roles"):
-            if raw.get(key) is None:
-                msg = f"auth.none.{key} is required when provider=none"
-                raise ValueError(msg)
-        return NoneProviderConfig(
-            default_account=raw["default_account"],
-            default_roles=raw["default_roles"],
-        )
 
     @classmethod
     def load(cls, config_path: pathlib.Path) -> AppConfig:
@@ -126,7 +95,7 @@ class AppConfig(BaseModel):
         auth = AuthConfig(
             provider=provider,
             none=(
-                cls._parse_none_cfg(auth_raw.get("none") or {})
+                parse_none_provider_config(auth_raw.get("none") or {})
                 if provider == "none"
                 else None
             ),
@@ -162,7 +131,7 @@ class AppConfig(BaseModel):
                 SidebarLink(**item) for item in (appearance.get("sidebar_links") or [])
             ],
             auth=auth,
-            role_permissions=cls._parse_permissions(raw["permissions"]),
+            role_permissions=parse_role_permissions(raw["permissions"]),
         )
 
     def load_environments(self) -> list[Environment]:

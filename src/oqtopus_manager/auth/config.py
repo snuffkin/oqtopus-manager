@@ -42,3 +42,23 @@ class AuthConfig(BaseModel):
     none: NoneProviderConfig | None = None  # required when provider == "none"
     header: HeaderProviderConfig | None = None  # required when provider == "header"
     role_mappings: dict[str, str] = {}
+
+
+def parse_none_provider_config(raw: dict) -> NoneProviderConfig:
+    """Parse a ``NoneProviderConfig`` from a raw dict, raising on missing fields.
+
+    Returns:
+        A validated ``NoneProviderConfig`` instance.
+
+    Raises:
+        ValueError: If ``default_account`` or ``default_roles`` is missing.
+
+    """
+    for key in ("default_account", "default_roles"):
+        if raw.get(key) is None:
+            msg = f"auth.none.{key} is required when provider=none"
+            raise ValueError(msg)
+    return NoneProviderConfig(
+        default_account=raw["default_account"],
+        default_roles=raw["default_roles"],
+    )

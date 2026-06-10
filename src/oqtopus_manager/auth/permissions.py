@@ -15,6 +15,30 @@ if TYPE_CHECKING:
     from .base import AuthUser
 
 
+def parse_role_permissions(raw: dict) -> dict[str, frozenset[str]]:
+    """Parse a permissions config dict into a resolved role → permissions mapping.
+
+    The ``_extends_`` key defines single-level inheritance: a role listed there
+    inherits all permissions of its parent role in addition to its own.
+
+    Returns:
+        Mapping of role name to resolved frozenset of permission strings.
+
+    """
+    extends: dict[str, str] = raw.get("_extends_") or {}
+    base: dict[str, set[str]] = {
+        key: set(value)
+        for key, value in raw.items()
+        if key != "_extends_" and isinstance(value, list)
+    }
+    resolved: dict[str, frozenset[str]] = {}
+    for role, perms in base.items():
+        parent = extends.get(role)
+        parent_perms = base.get(parent, set()) if parent else set()
+        resolved[role] = frozenset(perms | parent_perms)
+    return resolved
+
+
 def has_permission(
     user: AuthUser | None,
     permission: str,
