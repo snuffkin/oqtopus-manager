@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}{{ env.name }} — OQTOPUS Manager{% endblock %}
+{% block title %}{{ env.name }} | OQTOPUS Manager{% endblock %}
 
 {% block extra_head %}
 <style>
@@ -57,7 +57,7 @@
 {# Command cards grid #}
 <div class="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-5">
 
-  {# Components — always visible #}
+  {# Components | always visible #}
   <details id="card-components" data-sec="sec-components"
            class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden group {% if not all_versions_installed %}lg:col-span-2{% endif %}" open>
     <summary class="flex items-center gap-2 px-5 py-3 cursor-pointer hover:bg-gray-50 transition-colors border-b border-transparent group-open:border-gray-200">
@@ -136,7 +136,7 @@
     </div>
   </details>
 
-  {# Status — full width #}
+  {# Status | full width #}
   <details data-sec="sec-status" class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden group lg:col-span-2" open>
     <summary class="flex items-center gap-2 px-5 py-3 cursor-pointer hover:bg-gray-50 transition-colors border-b border-transparent group-open:border-gray-200">
       <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-400 flex-shrink-0 transition-transform duration-200 group-open:rotate-90" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">

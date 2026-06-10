@@ -1,5 +1,7 @@
 {% extends "base.html" %}
 {% from "_editor_section.html" import editor_section %}
+{% block title %}Settings | {{ app_name }}{% endblock %}
+
 {% block extra_head %}
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
@@ -48,7 +50,7 @@
     </dl>
   </details>
 
-  {# config.yaml — editable for admin, read-only for operator #}
+  {# config.yaml | editable for admin, read-only for operator #}
   {% if can_update %}
   {{ editor_section('cfg', 'config.yaml', config_path, 'appsettings-config', 'code-config', 'language-yaml', config_content, "downloadCode('code-config', 'config.yaml')") }}
   {% else %}
@@ -68,7 +70,7 @@
   </details>
   {% endif %}
 
-  {# logging.yaml — editable for admin, read-only for operator #}
+  {# logging.yaml | editable for admin, read-only for operator #}
   {% if can_update %}
   {{ editor_section('log', 'logging.yaml', logging_path, 'appsettings-logging', 'code-logging', 'language-yaml', logging_content, "downloadCode('code-logging', 'logging.yaml')") }}
   {% else %}
@@ -88,7 +90,7 @@
   </details>
   {% endif %}
 
-  {# environments YAML — always read-only (managed by the app) #}
+  {# environments YAML | always read-only (managed by the app) #}
   <details data-sec="appsettings-environments" class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden group" open>
     <summary class="flex items-center gap-2 px-5 py-3 bg-gray-50 cursor-pointer hover:bg-gray-100 transition-colors border-b border-transparent group-open:border-gray-200">
       <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-400 flex-shrink-0 transition-transform duration-200 group-open:rotate-90" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
