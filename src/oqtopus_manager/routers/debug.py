@@ -1,4 +1,4 @@
-"""Debug route: exposes request headers and JWT payload for development inspection."""
+"""Debug route: exposes user information, request headers, and JWT payload."""
 
 from __future__ import annotations
 
