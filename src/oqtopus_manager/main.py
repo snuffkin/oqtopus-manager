@@ -5,15 +5,15 @@ import importlib.metadata
 import pathlib
 
 import uvicorn
-from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
+from fastapi import FastAPI
+from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from oqtopus_util.config import load_config, setup_logging
 
 from oqtopus_manager.auth.fastapi import AuthMiddleware
 from oqtopus_manager.config import AppConfig
-from oqtopus_manager.routers import app_settings, browse, debug, me
+from oqtopus_manager.routers import app_settings, browse, debug, me, meta
 from oqtopus_manager.routers import backend as backend_pkg
 from oqtopus_manager.routers import cloud_local as cloud_local_pkg
 
@@ -67,6 +67,7 @@ def create_app(config_path: pathlib.Path) -> FastAPI:
     for tmpl in cfg.environment_templates:
         for router in _TEMPLATE_ROUTERS.get(tmpl, []):
             app.include_router(router)
+    app.include_router(meta.router)
     app.include_router(browse.router)
     app.include_router(app_settings.router)
     if cfg.auth.provider != "none":
@@ -82,34 +83,11 @@ def create_app(config_path: pathlib.Path) -> FastAPI:
 
 
 def _register_routes(app: FastAPI, default_url: str) -> None:
-    """Register app-level routes (redirect, version, assets, docs)."""
+    """Register the root redirect (needs default_url closure)."""
 
     @app.get("/")
     async def root() -> RedirectResponse:
         return RedirectResponse(url=default_url)
-
-    @app.get("/version")
-    async def version() -> dict[str, str]:
-        return {"version": app.version}
-
-    # Serve app icon and favicon from operator-configured paths
-    @app.get("/app-icon")
-    async def app_icon_file() -> FileResponse:
-        icon_path = app.state.config.app_icon_path
-        if icon_path and icon_path.exists():
-            return FileResponse(path=icon_path)
-        raise HTTPException(status_code=404, detail="No app icon configured.")
-
-    @app.get("/favicon.ico", include_in_schema=False)
-    async def favicon() -> FileResponse:
-        fav_path = app.state.config.favicon_path
-        if fav_path and fav_path.exists():
-            return FileResponse(path=fav_path)
-        raise HTTPException(status_code=404, detail="No favicon configured.")
-
-    @app.get("/api-docs", response_class=HTMLResponse)
-    async def api_docs_page(request: Request) -> HTMLResponse:
-        return app.state.templates.TemplateResponse(request, "api_docs.html", {})
 
 
 def _parse_args() -> argparse.Namespace:

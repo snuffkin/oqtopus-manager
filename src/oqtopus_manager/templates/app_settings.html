@@ -1,9 +1,80 @@
 {% extends "base.html" %}
 {% block title %}Settings — OQTOPUS Manager{% endblock %}
 
+{% macro editor_section(p, title, subtitle, sec_key, code_id, lang_class, content, dl_onclick) %}
+<details id="details-{{ p }}" data-sec="{{ sec_key }}" class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden group" open>
+  <summary class="flex items-center gap-2 px-5 py-3 bg-gray-50 cursor-pointer hover:bg-gray-100 transition-colors border-b border-transparent group-open:border-gray-200">
+    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-400 flex-shrink-0 transition-transform duration-200 group-open:rotate-90" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+    <div class="flex-1 min-w-0">
+      <h2 class="text-sm font-semibold text-[#4887FA]">{{ title }}</h2>
+      <p class="text-xs text-gray-400 font-mono mt-0.5 truncate">{{ subtitle }}</p>
+    </div>
+    <div class="flex items-center gap-2 flex-shrink-0" onclick="event.stopPropagation()">
+      <span id="{{ p }}-lock-badge" class="hidden inline-flex items-center gap-1 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        <span id="{{ p }}-lock-badge-text"></span>
+      </span>
+      <button id="{{ p }}-force-unlock-btn" onclick="{{ p }}Editor.openForceUnlockModal()" class="hidden btn btn-ghost btn-sm gap-1" style="color:#dc2626;" title="Force unlock">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></svg>
+        Force Unlock
+      </button>
+      <button id="{{ p }}-edit-btn" onclick="{{ p }}Editor.startEdit()" class="btn btn-ghost btn-sm text-gray-400 hover:text-gray-600 gap-1">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+        Edit
+      </button>
+      <button id="{{ p }}-preview-btn" onclick="{{ p }}Editor.showDiff()" class="hidden btn btn-ghost btn-sm text-gray-400 hover:text-gray-600 gap-1">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+        Preview &amp; Save
+      </button>
+      <button id="{{ p }}-cancel-btn" onclick="{{ p }}Editor.cancelEdit()" class="hidden btn btn-ghost btn-sm text-gray-500">Cancel</button>
+      <button id="{{ p }}-download-btn" onclick="{{ dl_onclick }}" class="btn btn-ghost btn-sm text-gray-400 hover:text-gray-600 gap-1" title="Download">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Download
+      </button>
+      <button onclick="{{ p }}Editor.toggleFullscreen()" class="btn btn-ghost btn-sm text-gray-400 hover:text-gray-600" title="Fullscreen">
+        <svg id="{{ p }}-fs-expand" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
+        <svg id="{{ p }}-fs-collapse" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3"/></svg>
+      </button>
+    </div>
+  </summary>
+  <div id="{{ p }}-view">
+    <pre class="m-0 rounded-none border-0 bg-white"><code id="{{ code_id }}" class="{{ lang_class }} text-sm leading-relaxed">{{ content | e }}</code></pre>
+  </div>
+  <div id="{{ p }}-edit" class="hidden border-t border-gray-200 px-4 py-3">
+    <div class="cfg-edit-wrap">
+      <pre id="{{ p }}-edit-pre" class="cfg-edit-pre hljs {{ lang_class }}"></pre>
+      <textarea id="{{ p }}-edit-ta" class="cfg-edit-ta" spellcheck="false" autocomplete="off" autocorrect="off" autocapitalize="off"></textarea>
+    </div>
+  </div>
+  <div id="{{ p }}-diff" class="hidden border-t border-gray-200">
+    <div class="flex items-center justify-between px-5 pt-4 pb-2">
+      <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Changes</p>
+      <div class="flex items-center gap-2">
+        <button onclick="{{ p }}Editor.confirmSave()" class="btn btn-sm btn-success btn-outline">Confirm Save</button>
+        <button onclick="{{ p }}Editor.backToEdit()" class="btn btn-sm btn-outline">Back to Edit</button>
+        <button onclick="{{ p }}Editor.cancelEditFromDiff()" class="btn btn-sm btn-outline btn-error">Cancel</button>
+      </div>
+    </div>
+    <div id="{{ p }}-diff-out" class="cfg-diff-out"></div>
+  </div>
+</details>
+{% endmacro %}
+
 {% block extra_head %}
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<style>
+  .cfg-edit-wrap { position: relative; min-height: calc(100vh - 22rem); overflow: hidden; border-radius: 0.5rem; border: 1px solid #d1d5db; background: #fff; }
+  .cfg-edit-wrap:focus-within { border-color: #60a5fa; box-shadow: 0 0 0 1px #60a5fa; }
+  .cfg-edit-pre, .cfg-edit-ta { position: absolute; inset: 0; padding: 0.75rem 1rem; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 0.8125rem; line-height: 1.5; white-space: pre-wrap; word-break: break-all; box-sizing: border-box; margin: 0; tab-size: 2; }
+  .cfg-edit-pre { overflow: hidden; pointer-events: none; z-index: 0; background: transparent; border: none; border-radius: 0; color: inherit; }
+  .cfg-edit-ta { resize: none; background: transparent; color: transparent; caret-color: #374151; z-index: 1; border: none; outline: none; overflow: auto; width: 100%; height: 100%; }
+  .cfg-diff-out { height: calc(100vh - 22rem); overflow-y: auto; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 0.8125rem; line-height: 1.5; padding: 0.75rem 1rem; background: #f9fafb; }
+  details.is-fullscreen { position: fixed !important; inset: 0 !important; z-index: 40; overflow-y: auto; background: #fff; border-radius: 0 !important; }
+  details.is-fullscreen summary { position: sticky; top: 0; z-index: 1; background: #f9fafb; }
+  details.is-fullscreen .cfg-edit-wrap { min-height: calc(100vh - 6rem) !important; }
+  details.is-fullscreen .cfg-diff-out { height: calc(100vh - 8rem) !important; }
+</style>
 {% endblock %}
 
 {% block page_banner %}
@@ -11,7 +82,7 @@
   {% include "_banner_svg.html" %}
   <div class="relative">
     <h1 class="text-2xl font-bold text-white">Settings</h1>
-    <p class="text-blue-100 text-sm mt-1">OQTOPUS Manager configuration files (read-only).</p>
+    <p class="text-blue-100 text-sm mt-1">OQTOPUS Manager configuration.{% if can_update %} config.yaml and logging.yaml are editable.{% endif %}</p>
   </div>
 </div>
 {% endblock %}
@@ -22,9 +93,7 @@
   {# oqtopus CLI info #}
   <details data-sec="appsettings-cli" class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden group" open>
     <summary class="flex items-center gap-2 px-5 py-3 bg-gray-50 cursor-pointer hover:bg-gray-100 transition-colors border-b border-transparent group-open:border-gray-200">
-      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-400 flex-shrink-0 transition-transform duration-200 group-open:rotate-90" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <path d="M9 18l6-6-6-6"/>
-      </svg>
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-400 flex-shrink-0 transition-transform duration-200 group-open:rotate-90" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
       <h2 class="text-sm font-semibold text-[#4887FA]">OQTOPUS CLI</h2>
     </summary>
     <dl class="divide-y divide-gray-200">
@@ -39,66 +108,56 @@
     </dl>
   </details>
 
-  {# config.yaml #}
+  {# config.yaml — editable for admin, read-only for operator #}
+  {% if can_update %}
+  {{ editor_section('cfg', 'config.yaml', config_path, 'appsettings-config', 'code-config', 'language-yaml', config_content, "downloadCode('code-config', 'config.yaml')") }}
+  {% else %}
   <details data-sec="appsettings-config" class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden group" open>
     <summary class="flex items-center gap-2 px-5 py-3 bg-gray-50 cursor-pointer hover:bg-gray-100 transition-colors border-b border-transparent group-open:border-gray-200">
-      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-400 flex-shrink-0 transition-transform duration-200 group-open:rotate-90" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <path d="M9 18l6-6-6-6"/>
-      </svg>
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-400 flex-shrink-0 transition-transform duration-200 group-open:rotate-90" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
       <div class="flex-1 min-w-0">
         <h2 class="text-sm font-semibold text-[#4887FA]">config.yaml</h2>
         <p class="text-xs text-gray-400 font-mono mt-0.5 truncate">{{ config_path }}</p>
       </div>
-      <button onclick="event.stopPropagation(); downloadCode('code-config', 'config.yaml')" class="btn btn-ghost btn-sm text-gray-400 hover:text-gray-600 gap-1 flex-shrink-0" title="Download config.yaml">
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-          <polyline points="7 10 12 15 17 10"/>
-          <line x1="12" y1="15" x2="12" y2="3"/>
-        </svg>
+      <button onclick="event.stopPropagation(); downloadCode('code-config', 'config.yaml')" class="btn btn-ghost btn-sm text-gray-400 hover:text-gray-600 gap-1 flex-shrink-0">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
         Download
       </button>
     </summary>
     <pre class="m-0 rounded-none border-0 bg-white"><code id="code-config" class="language-yaml text-sm leading-relaxed">{{ config_content | e }}</code></pre>
   </details>
+  {% endif %}
 
-  {# logging.yaml #}
+  {# logging.yaml — editable for admin, read-only for operator #}
+  {% if can_update %}
+  {{ editor_section('log', 'logging.yaml', logging_path, 'appsettings-logging', 'code-logging', 'language-yaml', logging_content, "downloadCode('code-logging', 'logging.yaml')") }}
+  {% else %}
   <details data-sec="appsettings-logging" class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden group" open>
     <summary class="flex items-center gap-2 px-5 py-3 bg-gray-50 cursor-pointer hover:bg-gray-100 transition-colors border-b border-transparent group-open:border-gray-200">
-      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-400 flex-shrink-0 transition-transform duration-200 group-open:rotate-90" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <path d="M9 18l6-6-6-6"/>
-      </svg>
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-400 flex-shrink-0 transition-transform duration-200 group-open:rotate-90" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
       <div class="flex-1 min-w-0">
         <h2 class="text-sm font-semibold text-[#4887FA]">logging.yaml</h2>
         <p class="text-xs text-gray-400 font-mono mt-0.5 truncate">{{ logging_path }}</p>
       </div>
-      <button onclick="event.stopPropagation(); downloadCode('code-logging', 'logging.yaml')" class="btn btn-ghost btn-sm text-gray-400 hover:text-gray-600 gap-1 flex-shrink-0" title="Download logging.yaml">
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-          <polyline points="7 10 12 15 17 10"/>
-          <line x1="12" y1="15" x2="12" y2="3"/>
-        </svg>
+      <button onclick="event.stopPropagation(); downloadCode('code-logging', 'logging.yaml')" class="btn btn-ghost btn-sm text-gray-400 hover:text-gray-600 gap-1 flex-shrink-0">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
         Download
       </button>
     </summary>
     <pre class="m-0 rounded-none border-0 bg-white"><code id="code-logging" class="language-yaml text-sm leading-relaxed">{{ logging_content | e }}</code></pre>
   </details>
+  {% endif %}
 
-  {# environments YAML #}
+  {# environments YAML — always read-only (managed by the app) #}
   <details data-sec="appsettings-environments" class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden group" open>
     <summary class="flex items-center gap-2 px-5 py-3 bg-gray-50 cursor-pointer hover:bg-gray-100 transition-colors border-b border-transparent group-open:border-gray-200">
-      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-400 flex-shrink-0 transition-transform duration-200 group-open:rotate-90" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <path d="M9 18l6-6-6-6"/>
-      </svg>
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-400 flex-shrink-0 transition-transform duration-200 group-open:rotate-90" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
       <div class="flex-1 min-w-0">
         <h2 class="text-sm font-semibold text-[#4887FA]">{{ environments_path.name }}</h2>
         <p class="text-xs text-gray-400 font-mono mt-0.5 truncate">{{ environments_path }}</p>
       </div>
-      <button onclick="event.stopPropagation(); downloadCode('code-environments', '{{ environments_path.name }}')" class="btn btn-ghost btn-sm text-gray-400 hover:text-gray-600 gap-1 flex-shrink-0" title="Download {{ environments_path.name }}">
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-          <polyline points="7 10 12 15 17 10"/>
-          <line x1="12" y1="15" x2="12" y2="3"/>
-        </svg>
+      <button onclick="event.stopPropagation(); downloadCode('code-environments', '{{ environments_path.name }}')" class="btn btn-ghost btn-sm text-gray-400 hover:text-gray-600 gap-1 flex-shrink-0">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
         Download
       </button>
     </summary>
@@ -107,6 +166,8 @@
 
 </div>
 
+{% if can_update %}{% include "environments/_modals.html" %}{% endif %}
+
 <script>
   function downloadCode(codeId, filename) {
     var el = document.getElementById(codeId);
@@ -114,9 +175,7 @@
     var blob = new Blob([text], { type: 'text/plain' });
     var url = URL.createObjectURL(blob);
     var a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    a.click();
+    a.href = url; a.download = filename; a.click();
     URL.revokeObjectURL(url);
   }
 
@@ -124,15 +183,123 @@
     var id = el.dataset.sec;
     var saved = localStorage.getItem('sec:' + id);
     if (saved === '0') el.removeAttribute('open');
-    el.addEventListener('toggle', function () {
-      localStorage.setItem('sec:' + id, el.open ? '1' : '0');
-    });
+    el.addEventListener('toggle', function () { localStorage.setItem('sec:' + id, el.open ? '1' : '0'); });
   });
 
   document.addEventListener('DOMContentLoaded', function () {
-    document.querySelectorAll('pre code').forEach(function (el) {
-      hljs.highlightElement(el);
-    });
+    document.querySelectorAll('pre code').forEach(function (el) { hljs.highlightElement(el); });
   });
+
+  {% if can_update %}
+  function _formatTs(ts) {
+    var d = new Date(ts * 1000);
+    var pad = function(n) { return String(n).padStart(2, '0'); };
+    return d.getFullYear() + '-' + pad(d.getMonth()+1) + '-' + pad(d.getDate()) + ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds());
+  }
+  function _escHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  function _lcs(a, b) {
+    var m = a.length, n = b.length;
+    var dp = Array.from({length: m+1}, function() { return new Array(n+1).fill(0); });
+    for (var i = 1; i <= m; i++) for (var j = 1; j <= n; j++) dp[i][j] = a[i-1] === b[j-1] ? dp[i-1][j-1]+1 : Math.max(dp[i-1][j], dp[i][j-1]);
+    var res = [], r = m, c = n;
+    while (r > 0 || c > 0) {
+      if (r > 0 && c > 0 && a[r-1] === b[c-1]) { res.unshift({t:'=', l:a[r-1]}); r--; c--; }
+      else if (c > 0 && (r === 0 || dp[r][c-1] >= dp[r-1][c])) { res.unshift({t:'+', l:b[c-1]}); c--; }
+      else { res.unshift({t:'-', l:a[r-1]}); r--; }
+    }
+    return res;
+  }
+  function makeEditor(o) {
+    var raw = o.rawContent, lang = o.language || 'yaml', baseUrl = o.baseUrl, timeoutSec = o.lockTimeoutSec;
+    var details = document.getElementById(o.detailsId), viewEl = document.getElementById(o.viewId), editEl = document.getElementById(o.editId), diffEl = document.getElementById(o.diffId);
+    var editPre = document.getElementById(o.editPreId), editTa = document.getElementById(o.editTaId), diffOut = document.getElementById(o.diffOutId);
+    var editBtn = document.getElementById(o.editBtnId), previewBtn = document.getElementById(o.previewBtnId), cancelBtn = document.getElementById(o.cancelBtnId), dlBtn = document.getElementById(o.dlBtnId);
+    var badge = document.getElementById(o.badgeId), badgeText = document.getElementById(o.badgeTextId), fuBtn = document.getElementById(o.fuBtnId);
+    var lockToken = null, lockTs = null, lockSince = null, timer = null;
+    function _updateBadge() {
+      if (!lockTs) return;
+      var rem = Math.max(0, Math.floor(timeoutSec - (Date.now()/1000 - lockTs)));
+      badgeText.textContent = 'Locked since ' + lockSince + ' · ' + rem + 's remaining';
+      if (rem === 0) { _stopTimer(); if (!lockToken) { fuBtn.classList.add('hidden'); editBtn.classList.remove('hidden'); } }
+    }
+    function _startTimer(since, ts) { lockSince = since; lockTs = ts; _updateBadge(); timer = setInterval(_updateBadge, 1000); badge.classList.remove('hidden'); }
+    function _stopTimer() { clearInterval(timer); timer = null; lockTs = null; badge.classList.add('hidden'); }
+    function showLockBadgeOther(since, ts) { editBtn.classList.add('hidden'); fuBtn.classList.remove('hidden'); _startTimer(since, ts); }
+    function _syncHL() { editPre.innerHTML = hljs.highlight(editTa.value, {language: lang}).value + '\n'; }
+    function _enterEdit(token, ts) {
+      lockToken = token; editBtn.classList.add('hidden'); dlBtn.classList.add('hidden');
+      previewBtn.classList.remove('hidden'); cancelBtn.classList.remove('hidden');
+      _startTimer(_formatTs(ts), ts); viewEl.classList.add('hidden'); editEl.classList.remove('hidden');
+      editTa.value = raw; _syncHL(); editTa.focus();
+    }
+    function startEdit() {
+      fetch(baseUrl + '/lock', {method: 'POST'}).then(function(r) { return r.json(); })
+        .then(function(d) { if (d.ok) { _enterEdit(d.token, d.acquired_ts); } else { showLockBadgeOther(d.locked_since, d.locked_since_ts); } });
+    }
+    function _doCancel() {
+      fetch(baseUrl + '/unlock', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({token:lockToken})}).finally(function() {
+        lockToken = null; _stopTimer(); fuBtn.classList.add('hidden'); editBtn.classList.remove('hidden');
+        previewBtn.classList.add('hidden'); cancelBtn.classList.add('hidden'); dlBtn.classList.remove('hidden');
+        editEl.classList.add('hidden'); diffEl.classList.add('hidden'); viewEl.classList.remove('hidden');
+      });
+    }
+    function cancelEdit() { if (editTa.value !== raw) { _discardCb = _doCancel; document.getElementById('discard-modal').classList.remove('hidden'); } else { _doCancel(); } }
+    function cancelEditFromDiff() { _discardCb = _doCancel; document.getElementById('discard-modal').classList.remove('hidden'); }
+    function openForceUnlockModal() {
+      _forceUnlockCb = function() {
+        fetch(baseUrl + '/force-unlock', {method:'POST'}).then(function(r) { return r.json(); })
+          .then(function() { _stopTimer(); fuBtn.classList.add('hidden'); return fetch(baseUrl + '/lock', {method:'POST'}); })
+          .then(function(r) { return r.json(); }).then(function(d) { if (d.ok) _enterEdit(d.token, d.acquired_ts); });
+      };
+      document.getElementById('force-unlock-modal').classList.remove('hidden');
+    }
+    function showDiff() {
+      var diff = _lcs(raw.split('\n'), editTa.value.split('\n'));
+      diffOut.innerHTML = diff.map(function(d) {
+        if (d.t==='+') return '<div class="bg-green-50 text-green-800"><span class="select-none text-green-400 mr-2">+</span>' + _escHtml(d.l) + '</div>';
+        if (d.t==='-') return '<div class="bg-red-50 text-red-800"><span class="select-none text-red-400 mr-2">-</span>' + _escHtml(d.l) + '</div>';
+        return '<div class="text-gray-600"><span class="select-none text-gray-300 mr-2"> </span>' + _escHtml(d.l) + '</div>';
+      }).join('');
+      editEl.classList.add('hidden'); previewBtn.classList.add('hidden'); cancelBtn.classList.add('hidden'); diffEl.classList.remove('hidden');
+    }
+    function backToEdit() { diffEl.classList.add('hidden'); editEl.classList.remove('hidden'); previewBtn.classList.remove('hidden'); cancelBtn.classList.remove('hidden'); }
+    function confirmSave() {
+      fetch(baseUrl + '/save', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({token:lockToken, content:editTa.value})})
+        .then(function(r) { return r.json(); }).then(function(d) { if (d.ok) window.location.reload(); else alert('Save failed: ' + (d.error || 'Unknown error')); });
+    }
+    function toggleFullscreen() {
+      var fs = details.classList.toggle('is-fullscreen');
+      document.getElementById(o.fsExpandId).classList.toggle('hidden', fs);
+      document.getElementById(o.fsCollapseId).classList.toggle('hidden', !fs);
+      if (fs && !details.open) details.setAttribute('open', '');
+    }
+    editTa.addEventListener('input', _syncHL);
+    editTa.addEventListener('scroll', function() { editPre.scrollTop = editTa.scrollTop; editPre.scrollLeft = editTa.scrollLeft; });
+    window.addEventListener('beforeunload', function() {
+      if (lockToken) fetch(baseUrl + '/unlock', {method:'POST', keepalive:true, headers:{'Content-Type':'application/json'}, body:JSON.stringify({token:lockToken})});
+    });
+    return {startEdit, cancelEdit, cancelEditFromDiff, openForceUnlockModal, showDiff, backToEdit, confirmSave, toggleFullscreen, showLockBadgeOther};
+  }
+
+  var cfgEditor = makeEditor({
+    rawContent: {{ config_content | tojson }}, lockTimeoutSec: {{ lock_timeout_sec }}, baseUrl: '/settings/config',
+    detailsId:'details-cfg', viewId:'cfg-view', editId:'cfg-edit', diffId:'cfg-diff',
+    editPreId:'cfg-edit-pre', editTaId:'cfg-edit-ta', diffOutId:'cfg-diff-out',
+    editBtnId:'cfg-edit-btn', previewBtnId:'cfg-preview-btn', cancelBtnId:'cfg-cancel-btn', dlBtnId:'cfg-download-btn',
+    badgeId:'cfg-lock-badge', badgeTextId:'cfg-lock-badge-text', fuBtnId:'cfg-force-unlock-btn',
+    fsExpandId:'cfg-fs-expand', fsCollapseId:'cfg-fs-collapse',
+  });
+  {% if config_is_locked %}cfgEditor.showLockBadgeOther({{ config_locked_since | tojson }}, {{ config_locked_since_ts }});{% endif %}
+
+  var logEditor = makeEditor({
+    rawContent: {{ logging_content | tojson }}, lockTimeoutSec: {{ lock_timeout_sec }}, baseUrl: '/settings/logging',
+    detailsId:'details-log', viewId:'log-view', editId:'log-edit', diffId:'log-diff',
+    editPreId:'log-edit-pre', editTaId:'log-edit-ta', diffOutId:'log-diff-out',
+    editBtnId:'log-edit-btn', previewBtnId:'log-preview-btn', cancelBtnId:'log-cancel-btn', dlBtnId:'log-download-btn',
+    badgeId:'log-lock-badge', badgeTextId:'log-lock-badge-text', fuBtnId:'log-force-unlock-btn',
+    fsExpandId:'log-fs-expand', fsCollapseId:'log-fs-collapse',
+  });
+  {% if logging_is_locked %}logEditor.showLockBadgeOther({{ logging_locked_since | tojson }}, {{ logging_locked_since_ts }});{% endif %}
+  {% endif %}
 </script>
 {% endblock %}

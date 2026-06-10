@@ -250,7 +250,7 @@
         <span class="sidebar-label">Settings</span>
       </a>
 
-      {% if request.state.user %}
+      {% if request.state.user and request.app.state.config.auth.provider != "none" %}
       {% set signout_url = request.app.state.config.auth.header.signout_url %}
       {% if signout_url %}
       <a href="{{ signout_url }}" title="Sign out"
@@ -265,7 +265,7 @@
       {% endif %}
       {% endif %}
     </nav>
-    {% if request.state.user %}
+    {% if request.state.user and request.app.state.config.auth.provider != "none" %}
     <div class="border-t border-gray-100 px-2 py-2 flex-shrink-0">
       <a id="user-me-link" href="/me" title="My Account"
          class="flex items-center gap-2.5 px-2.5 py-2 rounded-lg transition-colors duration-150 min-w-0

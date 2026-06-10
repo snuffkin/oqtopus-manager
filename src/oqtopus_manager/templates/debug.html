@@ -39,6 +39,7 @@
           {% endfor %}
         </dd>
       </div>
+      {% if request.app.state.config.auth.provider != "none" %}
       <div class="flex items-start px-5 py-2">
         <dt class="w-40 text-sm font-medium text-gray-500 flex-shrink-0 pt-0.5">Raw roles</dt>
         <dd class="text-sm font-mono text-gray-500 break-all">{{ user.raw_groups | join(", ") }}</dd>
@@ -48,6 +49,7 @@
         <dt class="w-40 text-sm font-medium text-gray-500 flex-shrink-0 pt-0.5">Allowed raw roles</dt>
         <dd class="text-sm font-mono text-gray-500 break-all">{{ allowed_raw_roles | join(", ") }}</dd>
       </div>
+      {% endif %}
       {% endif %}
     </dl>
   </details>

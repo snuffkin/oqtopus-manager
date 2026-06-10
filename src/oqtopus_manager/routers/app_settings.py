@@ -6,14 +6,25 @@ import asyncio
 import shutil
 from typing import TYPE_CHECKING
 
-from fastapi import APIRouter, Request
-from fastapi.responses import HTMLResponse
+from fastapi import APIRouter, HTTPException, Request
+from fastapi.responses import HTMLResponse, JSONResponse
 
 from oqtopus_manager.auth.fastapi import require_permission
 from oqtopus_manager.auth.permissions import has_permission
+from oqtopus_manager.routers._file_edit import (
+    _acquire_file_lock,
+    _check_lock,
+    _force_unlock_file,
+    _release_file_lock,
+    _save_file,
+    _SaveBody,
+    _UnlockBody,
+)
 
 if TYPE_CHECKING:
     import pathlib
+
+    from oqtopus_manager.config import AppConfig
 
 router = APIRouter(prefix="/settings", tags=["settings"])
 
@@ -39,6 +50,49 @@ async def _run_quick(argv: list[str]) -> str:
         return "command not found"
     except TimeoutError:
         return "timeout"
+
+
+def _which_to_path(which: str, cfg: AppConfig) -> pathlib.Path:
+    """Resolve 'config' or 'logging' to the corresponding settings file path.
+
+    Returns:
+        The resolved Path for the requested settings file.
+
+    Raises:
+        HTTPException: If ``which`` is not a recognised settings file name.
+
+    """
+    if which == "config":
+        return cfg.config_path
+    if which == "logging":
+        return cfg.config_path.parent / "logging.yaml"
+    raise HTTPException(status_code=400, detail=f"Unknown settings file: {which!r}")
+
+
+def _build_lock_context(cfg: AppConfig) -> dict:
+    """Build lock-state context for config.yaml and logging.yaml.
+
+    Returns:
+        Dict with is_locked, locked_since, locked_since_ts for each file.
+
+    """
+    config_lock = cfg.config_path.parent / "config.yaml.lock"
+    logging_lock = cfg.config_path.parent / "logging.yaml.lock"
+    config_is_locked, _, config_locked_since, config_locked_since_ts = _check_lock(
+        config_lock, cfg.file_edit_lock_timeout_sec
+    )
+    logging_is_locked, _, logging_locked_since, logging_locked_since_ts = _check_lock(
+        logging_lock, cfg.file_edit_lock_timeout_sec
+    )
+    return {
+        "config_is_locked": config_is_locked,
+        "config_locked_since": config_locked_since,
+        "config_locked_since_ts": config_locked_since_ts,
+        "logging_is_locked": logging_is_locked,
+        "logging_locked_since": logging_locked_since,
+        "logging_locked_since_ts": logging_locked_since_ts,
+        "lock_timeout_sec": cfg.file_edit_lock_timeout_sec,
+    }
 
 
 @router.get(
@@ -69,6 +123,7 @@ async def settings_page(request: Request) -> HTMLResponse:
     oqtopus_path = shutil.which("oqtopus") or "not found"
     raw_version = await _run_quick(["oqtopus", "version"])
     oqtopus_version = raw_version.removeprefix("oqtopus ").strip()
+    lock_ctx = _build_lock_context(cfg)
 
     return request.app.state.templates.TemplateResponse(
         request,
@@ -82,7 +137,78 @@ async def settings_page(request: Request) -> HTMLResponse:
             "environments_content": _read(environments_path),
             "oqtopus_path": oqtopus_path,
             "oqtopus_version": oqtopus_version,
-            # True only for admin; gates future edit UI elements
             "can_update": has_permission(user, "app_settings.update"),
+            **lock_ctx,
         },
+    )
+
+
+@router.post(
+    "/{which}/force-unlock",
+    dependencies=[require_permission("app_settings.update")],
+)
+async def force_unlock_settings(request: Request, which: str) -> JSONResponse:
+    """Force-unlock a settings file.
+
+    Returns:
+        JSONResponse with ok=True on success.
+
+    """
+    cfg = request.app.state.config
+    file_path = _which_to_path(which, cfg)
+    return _force_unlock_file(file_path.parent / f"{file_path.name}.lock")
+
+
+@router.post(
+    "/{which}/lock",
+    dependencies=[require_permission("app_settings.update")],
+)
+async def acquire_settings_lock(request: Request, which: str) -> JSONResponse:
+    """Acquire a lock on a settings file.
+
+    Returns:
+        JSONResponse with ok=True and token on success, or conflict info.
+
+    """
+    cfg = request.app.state.config
+    file_path = _which_to_path(which, cfg)
+    lock_path = file_path.parent / f"{file_path.name}.lock"
+    return _acquire_file_lock(lock_path, cfg.file_edit_lock_timeout_sec)
+
+
+@router.post(
+    "/{which}/unlock",
+    dependencies=[require_permission("app_settings.update")],
+)
+async def release_settings_lock(
+    request: Request, which: str, body: _UnlockBody
+) -> JSONResponse:
+    """Release a lock on a settings file.
+
+    Returns:
+        JSONResponse with ok=True if the lock was released.
+
+    """
+    cfg = request.app.state.config
+    file_path = _which_to_path(which, cfg)
+    lock_path = file_path.parent / f"{file_path.name}.lock"
+    return _release_file_lock(lock_path, body.token, cfg.file_edit_lock_timeout_sec)
+
+
+@router.post(
+    "/{which}/save",
+    dependencies=[require_permission("app_settings.update")],
+)
+async def save_settings(request: Request, which: str, body: _SaveBody) -> JSONResponse:
+    """Save a settings file after validating the lock token.
+
+    Returns:
+        JSONResponse with ok=True on success.
+
+    """
+    cfg = request.app.state.config
+    file_path = _which_to_path(which, cfg)
+    lock_path = file_path.parent / f"{file_path.name}.lock"
+    return _save_file(
+        file_path, lock_path, body.content, body.token, cfg.file_edit_lock_timeout_sec
     )
