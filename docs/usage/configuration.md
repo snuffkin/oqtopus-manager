@@ -127,8 +127,8 @@ permissions:
 
 | Key | Type | Required | Description |
 |-----|------|----------|-------------|
-| `_extends_` | mapping | No | Single-level inheritance. `admin: operator` means admin gets all operator permissions plus its own. |
-| `<role>` | list of strings | **Yes** | Permission strings granted to this role. At least one role must be defined. |
+| `_extends_` | mapping | No | Single-level role inheritance. `admin: operator` means admin automatically receives all of operator's permissions in addition to its own, avoiding duplicate entries. Each role lists only the permissions it adds beyond its parent. |
+| `<role>` | list of strings | **Yes** | Permission strings granted to this role. When `_extends_` is set, list only the additions; inherited permissions are merged automatically. |
 
 ---
 

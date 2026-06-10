@@ -1,7 +1,24 @@
 # Permissions
 
-OQTOPUS Manager uses a permission-based access control model.
-Roles are mapped to sets of permissions, and each API endpoint or UI element requires a specific permission.
+## Overview
+
+OQTOPUS Manager uses **permission-based access control (PBAC)**. The core idea is:
+
+1. Each user holds one or more **roles** (e.g. `operator`, `admin`).
+2. Each role is mapped to a set of **permissions** (e.g. `environment.get`, `app_settings.update`).
+3. Each API endpoint and UI element declares which permission it requires.
+
+This two-level indirection (role → permission) decouples "who the user is" from "what they can do".
+Adding a new action only requires a new permission string — no role definition changes.
+
+### Why permissions instead of roles?
+
+A role-only model checks `if user.role == "admin"` directly in the code. This becomes fragile:
+adding a new role or redistributing capabilities requires touching every check site.
+
+With permissions, each check site declares a stable intent (`"environment.create"`) and the
+role-to-permission mapping in `config.yaml` determines who can perform it.
+Changing which roles have which permissions requires only a config change, not a code change.
 
 ## Design conventions
 
@@ -26,6 +43,10 @@ Roles are mapped to sets of permissions, and each API endpoint or UI element req
 
 ## Permission list
 
+Each permission string follows the `<resource>.<action>` format described above.
+The table below lists all permissions **hardcoded in the application**.
+Adding or removing a permission requires a code change.
+
 | Permission | Description |
 |---|---|
 | `environment.get` | View environment list, detail, settings, and component versions |
@@ -40,6 +61,15 @@ Roles are mapped to sets of permissions, and each API endpoint or UI element req
 | `app_settings.update` | Edit OQTOPUS Manager configuration *(admin only)* |
 
 ## Role mapping
+
+The table below shows the **recommended default mapping** provided in `config/config.yaml.example`.
+This is not fixed — you can freely change which roles exist and which permissions each role holds
+by editing the `permissions:` section of your `config.yaml`
+(see [Configuration — permissions](configuration.md#permissions)).
+
+`admin` is configured as a strict superset of `operator`:
+every permission `operator` holds is also held by `admin`, plus `admin` gains
+`app_settings.update` to manage the application itself.
 
 | Permission | operator | admin |
 |---|:---:|:---:|
@@ -67,8 +97,16 @@ Two endpoints intentionally have no `require_permission()` dependency:
 
 ## Implementation
 
-Permissions are defined in [`auth/permissions.py`](../../src/oqtopus_manager/auth/permissions.py).
-The `require_permission()` FastAPI dependency in `auth/fastapi/depends.py` enforces permissions on each route.
+Role-to-permission mappings are defined in `config.yaml` under the `permissions:` key
+(see [Configuration — permissions](configuration.md#permissions)).
+
+The application reads this configuration at startup and uses the following components to enforce it:
+
+- `auth/permissions.py` — provides `parse_role_permissions()` to parse the config and `Permissions` to check them
+- `auth/fastapi/depends.py` — provides `FastAPIPermissions` and `require_permission()` to enforce permissions on each route
+
+For details on how to use these classes, see
+[Developer Guidelines — Permissions](../developer_guidelines/permissions.md).
 
 When authentication is disabled (`provider: none`), a virtual admin user is used so that
 all permissions are granted and the application behaves identically to a real admin session.
