@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, override
 
-from oqtopus_manager.auth.base import AuthProvider, AuthUser
+from .base import AuthProvider, AuthUser
 
 if TYPE_CHECKING:
     from fastapi import Request

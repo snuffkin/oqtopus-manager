@@ -9,12 +9,12 @@ from typing import TYPE_CHECKING, override
 import jwt
 from jwt import PyJWKClient
 
-from oqtopus_manager.auth.base import AuthenticationError, AuthProvider, AuthUser
+from .base import AuthenticationError, AuthProvider, AuthUser
 
 if TYPE_CHECKING:
     from fastapi import Request
 
-    from oqtopus_manager.auth.config import (
+    from .config import (
         AuthConfig,
         HeaderProviderConfig,
         SignatureVerificationConfig,

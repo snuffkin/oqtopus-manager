@@ -28,9 +28,17 @@ class HeaderProviderConfig(BaseModel):
     signout_url: str | None = None
 
 
+class NoneProviderConfig(BaseModel):
+    """Settings for the provider: none (disabled auth) mode."""
+
+    default_account: str
+    default_roles: list[str]
+
+
 class AuthConfig(BaseModel):
     """Top-level authentication configuration."""
 
     provider: str = "none"
-    header: HeaderProviderConfig | None = None  # None when provider != "header"
+    none: NoneProviderConfig | None = None  # required when provider == "none"
+    header: HeaderProviderConfig | None = None  # required when provider == "header"
     role_mappings: dict[str, str] = {}

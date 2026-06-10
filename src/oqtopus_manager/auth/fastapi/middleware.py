@@ -7,14 +7,14 @@ from typing import TYPE_CHECKING, override
 from fastapi.responses import HTMLResponse, Response
 from starlette.middleware.base import BaseHTTPMiddleware
 
-from oqtopus_manager.auth.providers import AuthenticationError, build_provider
+from ..providers import AuthenticationError, build_provider  # noqa: TID252
 
 if TYPE_CHECKING:
     from fastapi import Request
     from starlette.middleware.base import RequestResponseEndpoint
     from starlette.types import ASGIApp
 
-    from oqtopus_manager.auth.config import AuthConfig
+    from ..config import AuthConfig  # noqa: TID252
 
 
 class AuthMiddleware(BaseHTTPMiddleware):

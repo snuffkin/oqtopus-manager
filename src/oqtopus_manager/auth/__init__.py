@@ -1,8 +1,14 @@
 """Authentication package: providers and configuration models (framework-agnostic)."""
 
-from .config import AuthConfig, HeaderProviderConfig, SignatureVerificationConfig
+from .config import (
+    AuthConfig,
+    HeaderProviderConfig,
+    NoneProviderConfig,
+    SignatureVerificationConfig,
+)
 from .header_provider import HeaderProvider
 from .null_provider import NullProvider
+from .permissions import has_permission
 from .providers import AuthenticationError, AuthProvider, AuthUser, build_provider
 
 __all__ = [
@@ -12,7 +18,9 @@ __all__ = [
     "AuthenticationError",
     "HeaderProvider",
     "HeaderProviderConfig",
+    "NoneProviderConfig",
     "NullProvider",
     "SignatureVerificationConfig",
     "build_provider",
+    "has_permission",
 ]

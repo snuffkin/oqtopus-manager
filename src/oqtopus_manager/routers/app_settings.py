@@ -137,7 +137,9 @@ async def settings_page(request: Request) -> HTMLResponse:
             "environments_content": _read(environments_path),
             "oqtopus_path": oqtopus_path,
             "oqtopus_version": oqtopus_version,
-            "can_update": has_permission(user, "app_settings.update"),
+            "can_update": has_permission(
+                user, "app_settings.update", request.app.state.role_permissions
+            ),
             **lock_ctx,
         },
     )

@@ -6,8 +6,8 @@ from typing import TYPE_CHECKING, Annotated
 
 from fastapi import Depends, HTTPException, Request
 
-from oqtopus_manager.auth.base import AuthUser
-from oqtopus_manager.auth.permissions import has_permission
+from ..base import AuthUser  # noqa: TID252
+from ..permissions import has_permission  # noqa: TID252
 
 if TYPE_CHECKING:
     from fastapi.params import Depends as DependsType
@@ -34,8 +34,9 @@ def require_permission(permission: str) -> DependsType:
 
     """
 
-    def check(user: CurrentUser) -> AuthUser | None:
-        if not has_permission(user, permission):
+    def check(request: Request, user: CurrentUser) -> AuthUser | None:
+        role_permissions: dict[str, frozenset[str]] = request.app.state.role_permissions
+        if not has_permission(user, permission, role_permissions):
             raise HTTPException(status_code=403, detail="Insufficient permissions")
         return user
 

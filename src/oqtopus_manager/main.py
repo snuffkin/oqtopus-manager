@@ -57,6 +57,7 @@ def create_app(config_path: pathlib.Path) -> FastAPI:
     templates.env.globals["environment_templates"] = cfg.environment_templates
     templates.env.globals["sidebar_links"] = cfg.sidebar_links
     app.state.templates = templates
+    app.state.role_permissions = cfg.role_permissions
 
     # Serve operator-supplied assets (icons, images) from the runtime working directory
     assets_dir = pathlib.Path.cwd() / "assets"

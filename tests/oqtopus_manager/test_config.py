@@ -30,7 +30,23 @@ def _write_config(config_dir: pathlib.Path, envs_path: str = "./environments.yam
                     "app_name": "OQTOPUS Manager",
                     "environment_templates": ["backend"],
                 },
-                "enable_debug_endpoint": False,
+                        "auth": {
+            "provider": "none",
+            "none": {
+                "default_account": "admin_user",
+                "default_roles": ["admin"],
+            },
+        },
+        "enable_debug_endpoint": False,        "permissions": {
+            "_extends_": {"admin": "operator"},
+            "operator": [
+                "environment.get", "environment.create", "environment.delete",
+                "environment.config.get", "environment.config.update",
+                "environment.log.get", "environment.service.manage",
+                "environment.component.manage", "app_settings.get",
+            ],
+            "admin": ["app_settings.update"],
+        },
             }
         ),
         encoding="utf-8",
@@ -75,7 +91,23 @@ def test_host_port_custom(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatc
                     "app_name": "OQTOPUS Manager",
                     "environment_templates": ["backend"],
                 },
-                "enable_debug_endpoint": False,
+                "auth": {
+                    "provider": "none",
+                    "none": {
+                        "default_account": "admin_user",
+                        "default_roles": ["admin"],
+                    },
+                },
+                "enable_debug_endpoint": False,        "permissions": {
+            "_extends_": {"admin": "operator"},
+            "operator": [
+                "environment.get", "environment.create", "environment.delete",
+                "environment.config.get", "environment.config.update",
+                "environment.log.get", "environment.service.manage",
+                "environment.component.manage", "app_settings.get",
+            ],
+            "admin": ["app_settings.update"],
+        },
             }
         ),
         encoding="utf-8",

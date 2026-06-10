@@ -174,6 +174,16 @@ _HEADER_AUTH_CONFIG = {
         "role_mappings": {"test.admin": "operator"},
     },
     "enable_debug_endpoint": False,
+    "permissions": {
+        "_extends_": {"admin": "operator"},
+        "operator": [
+            "environment.get", "environment.create", "environment.delete",
+            "environment.config.get", "environment.config.update",
+            "environment.log.get", "environment.service.manage",
+            "environment.component.manage", "app_settings.get",
+        ],
+        "admin": ["app_settings.update"],
+    },
 }
 
 

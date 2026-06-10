@@ -30,7 +30,23 @@ def config_path(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> path
             "app_name": "OQTOPUS Manager",
             "environment_templates": ["backend"],
         },
-        "enable_debug_endpoint": False,
+                "auth": {
+            "provider": "none",
+            "none": {
+                "default_account": "admin_user",
+                "default_roles": ["admin"],
+            },
+        },
+        "enable_debug_endpoint": False,        "permissions": {
+            "_extends_": {"admin": "operator"},
+            "operator": [
+                "environment.get", "environment.create", "environment.delete",
+                "environment.config.get", "environment.config.update",
+                "environment.log.get", "environment.service.manage",
+                "environment.component.manage", "app_settings.get",
+            ],
+            "admin": ["app_settings.update"],
+        },
     }
     cfg_path = tmp_path / "config.yaml"
     cfg_path.write_text(yaml.dump(config), encoding="utf-8")
@@ -179,7 +195,23 @@ def cloud_local_config_path(
             "app_name": "OQTOPUS Manager",
             "environment_templates": ["cloud-local"],
         },
-        "enable_debug_endpoint": False,
+        "auth": {
+            "provider": "none",
+            "none": {
+                "default_account": "admin_user",
+                "default_roles": ["admin"],
+            },
+        },
+        "enable_debug_endpoint": False,        "permissions": {
+            "_extends_": {"admin": "operator"},
+            "operator": [
+                "environment.get", "environment.create", "environment.delete",
+                "environment.config.get", "environment.config.update",
+                "environment.log.get", "environment.service.manage",
+                "environment.component.manage", "app_settings.get",
+            ],
+            "admin": ["app_settings.update"],
+        },
     }
     cfg_path = tmp_path / "config.yaml"
     cfg_path.write_text(yaml.dump(config), encoding="utf-8")
@@ -369,7 +401,23 @@ def test_create_app_with_empty_templates_raises(
             "app_name": "OQTOPUS Manager",
             "environment_templates": [],  # empty — should raise
         },
-        "enable_debug_endpoint": False,
+        "auth": {
+            "provider": "none",
+            "none": {
+                "default_account": "admin_user",
+                "default_roles": ["admin"],
+            },
+        },
+        "enable_debug_endpoint": False,        "permissions": {
+            "_extends_": {"admin": "operator"},
+            "operator": [
+                "environment.get", "environment.create", "environment.delete",
+                "environment.config.get", "environment.config.update",
+                "environment.log.get", "environment.service.manage",
+                "environment.component.manage", "app_settings.get",
+            ],
+            "admin": ["app_settings.update"],
+        },
     }
     cfg_path = tmp_path / "config.yaml"
     cfg_path.write_text(yaml.dump(config), encoding="utf-8")
@@ -413,7 +461,23 @@ def test_app_icon_200_when_configured(
             "environment_templates": ["backend"],
             "app_icon_path": "./icon.png",
         },
-        "enable_debug_endpoint": False,
+        "auth": {
+            "provider": "none",
+            "none": {
+                "default_account": "admin_user",
+                "default_roles": ["admin"],
+            },
+        },
+        "enable_debug_endpoint": False,        "permissions": {
+            "_extends_": {"admin": "operator"},
+            "operator": [
+                "environment.get", "environment.create", "environment.delete",
+                "environment.config.get", "environment.config.update",
+                "environment.log.get", "environment.service.manage",
+                "environment.component.manage", "app_settings.get",
+            ],
+            "admin": ["app_settings.update"],
+        },
     }
     cfg_path = tmp_path / "config.yaml"
     cfg_path.write_text(yaml.dump(config), encoding="utf-8")
@@ -509,7 +573,24 @@ def debug_client(
             "app_name": "OQTOPUS Manager",
             "environment_templates": ["backend"],
         },
+        "auth": {
+            "provider": "none",
+            "none": {
+                "default_account": "admin_user",
+                "default_roles": ["admin"],
+            },
+        },
         "enable_debug_endpoint": True,
+        "permissions": {
+            "_extends_": {"admin": "operator"},
+            "operator": [
+                "environment.get", "environment.create", "environment.delete",
+                "environment.config.get", "environment.config.update",
+                "environment.log.get", "environment.service.manage",
+                "environment.component.manage", "app_settings.get",
+            ],
+            "admin": ["app_settings.update"],
+        },
     }
     cfg_path = tmp_path / "config.yaml"
     cfg_path.write_text(yaml.dump(config), encoding="utf-8")

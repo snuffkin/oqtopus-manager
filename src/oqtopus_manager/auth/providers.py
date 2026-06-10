@@ -8,12 +8,12 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from oqtopus_manager.auth.base import AuthenticationError, AuthProvider, AuthUser
-from oqtopus_manager.auth.header_provider import HeaderProvider
-from oqtopus_manager.auth.null_provider import NullProvider
+from .base import AuthenticationError, AuthProvider, AuthUser
+from .header_provider import HeaderProvider
+from .null_provider import NullProvider
 
 if TYPE_CHECKING:
-    from oqtopus_manager.auth.config import AuthConfig
+    from .config import AuthConfig
 
 __all__ = [
     "AuthProvider",
