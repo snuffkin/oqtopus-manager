@@ -55,14 +55,14 @@ function makeEditor(o) {
     if (!lockTs) return;
     var rem = Math.max(0, Math.floor(timeoutSec - (Date.now()/1000 - lockTs)));
     badgeText.textContent = 'Locked since ' + lockSince + ' · ' + rem + 's remaining';
-    if (rem === 0) { _stopTimer(); if (!lockToken) { fuBtn.classList.add('hidden'); editBtn.classList.remove('hidden'); releaseDiffBtn.classList.remove('hidden'); } }
+    if (rem === 0) { _stopTimer(); if (!lockToken) { fuBtn.classList.add('hidden'); editBtn.classList.remove('hidden'); if (releaseDiffBtn) releaseDiffBtn.classList.remove('hidden'); } }
   }
   function _startTimer(since, ts) { lockSince = since; lockTs = ts; _updateBadge(); timer = setInterval(_updateBadge, 1000); badge.classList.remove('hidden'); }
   function _stopTimer() { clearInterval(timer); timer = null; lockTs = null; badge.classList.add('hidden'); }
   function showLockBadgeOther(since, ts) { editBtn.classList.add('hidden'); fuBtn.classList.remove('hidden'); _startTimer(since, ts); }
   function _syncHL() { editPre.innerHTML = hljs.highlight(editTa.value, {language: lang}).value + '\n'; }
   function _enterEdit(token, ts) {
-    lockToken = token; editBtn.classList.add('hidden'); releaseDiffBtn.classList.add('hidden'); dlBtn.classList.add('hidden');
+    lockToken = token; editBtn.classList.add('hidden'); if (releaseDiffBtn) releaseDiffBtn.classList.add('hidden'); dlBtn.classList.add('hidden');
     previewBtn.classList.remove('hidden'); cancelBtn.classList.remove('hidden');
     _startTimer(_formatTs(ts), ts); viewEl.classList.add('hidden'); editEl.classList.remove('hidden');
     editTa.value = raw; _syncHL(); editTa.focus();
@@ -73,7 +73,7 @@ function makeEditor(o) {
   }
   function _doCancel() {
     fetch(baseUrl + '/unlock', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({token:lockToken})}).finally(function() {
-      lockToken = null; _stopTimer(); fuBtn.classList.add('hidden'); editBtn.classList.remove('hidden'); releaseDiffBtn.classList.remove('hidden');
+      lockToken = null; _stopTimer(); fuBtn.classList.add('hidden'); editBtn.classList.remove('hidden'); if (releaseDiffBtn) releaseDiffBtn.classList.remove('hidden');
       previewBtn.classList.add('hidden'); cancelBtn.classList.add('hidden'); dlBtn.classList.remove('hidden');
       editEl.classList.add('hidden'); diffEl.classList.add('hidden'); viewEl.classList.remove('hidden');
     });
@@ -105,28 +105,24 @@ function makeEditor(o) {
     if (fs && !details.open) details.setAttribute('open', '');
   }
   function showReleaseDiff() {
-    releaseDiffBtn.classList.add('hidden'); editBtn.classList.add('hidden'); dlBtn.classList.add('hidden');
+    if (releaseDiffBtn) releaseDiffBtn.classList.add('hidden'); editBtn.classList.add('hidden'); dlBtn.classList.add('hidden');
     fetch(baseUrl + '/release-diff').then(function(r) { return r.json(); })
       .then(function(d) {
-        releaseDiffPathEl.textContent = d.installed_path || '';
+        if (releaseDiffPathEl) releaseDiffPathEl.textContent = d.installed_path || '';
         if (subtitleEl) { subtitleEl.classList.remove('text-gray-400'); subtitleEl.classList.add('bg-green-50', 'text-green-800', 'px-2', 'py-0.5', 'rounded', 'w-fit'); }
         if (!d.installed_content) {
-          releaseDiffOut.innerHTML = '<div class="py-6 text-center text-sm text-gray-400">Installed config file not found.</div>';
+          if (releaseDiffOut) releaseDiffOut.innerHTML = '<div class="py-6 text-center text-sm text-gray-400">Installed config file not found.</div>';
         } else {
           var diff = _computeDiff(d.installed_content, raw);
           var hasDiff = diff.some(function(item) { return item.t !== '='; });
-          if (!hasDiff) {
-            releaseDiffOut.innerHTML = '<div class="py-6 text-center text-sm text-gray-400">No differences found.</div>';
-          } else {
-            releaseDiffOut.innerHTML = _renderDiff(diff);
-          }
+          if (releaseDiffOut) releaseDiffOut.innerHTML = hasDiff ? _renderDiff(diff) : '<div class="py-6 text-center text-sm text-gray-400">No differences found.</div>';
         }
-        viewEl.classList.add('hidden'); releaseDiffEl.classList.remove('hidden');
+        viewEl.classList.add('hidden'); if (releaseDiffEl) releaseDiffEl.classList.remove('hidden');
       });
   }
   function hideReleaseDiff() {
-    releaseDiffEl.classList.add('hidden'); viewEl.classList.remove('hidden');
-    releaseDiffBtn.classList.remove('hidden'); dlBtn.classList.remove('hidden');
+    if (releaseDiffEl) releaseDiffEl.classList.add('hidden'); viewEl.classList.remove('hidden');
+    if (releaseDiffBtn) releaseDiffBtn.classList.remove('hidden'); dlBtn.classList.remove('hidden');
     if (subtitleEl) { subtitleEl.classList.add('text-gray-400'); subtitleEl.classList.remove('bg-green-50', 'text-green-800', 'px-2', 'py-0.5', 'rounded', 'w-fit'); }
     // Restore edit button only when no other user's lock is active
     if (fuBtn.classList.contains('hidden')) { editBtn.classList.remove('hidden'); }

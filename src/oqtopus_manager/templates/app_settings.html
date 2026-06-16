@@ -143,6 +143,9 @@
     editBtnId:'cfg-edit-btn', previewBtnId:'cfg-preview-btn', cancelBtnId:'cfg-cancel-btn', dlBtnId:'cfg-download-btn',
     badgeId:'cfg-lock-badge', badgeTextId:'cfg-lock-badge-text', fuBtnId:'cfg-force-unlock-btn',
     fsExpandId:'cfg-fs-expand', fsCollapseId:'cfg-fs-collapse',
+    releaseDiffBtnId:'cfg-release-diff-btn', releaseDiffId:'cfg-release-diff',
+    releaseDiffOutId:'cfg-release-diff-out', releaseDiffPathId:'cfg-release-diff-path',
+    subtitleId:'cfg-subtitle',
   });
   {% if config_is_locked %}cfgEditor.showLockBadgeOther({{ config_locked_since | tojson }}, {{ config_locked_since_ts }});{% endif %}
 
@@ -153,8 +156,17 @@
     editBtnId:'log-edit-btn', previewBtnId:'log-preview-btn', cancelBtnId:'log-cancel-btn', dlBtnId:'log-download-btn',
     badgeId:'log-lock-badge', badgeTextId:'log-lock-badge-text', fuBtnId:'log-force-unlock-btn',
     fsExpandId:'log-fs-expand', fsCollapseId:'log-fs-collapse',
+    releaseDiffBtnId:'log-release-diff-btn', releaseDiffId:'log-release-diff',
+    releaseDiffOutId:'log-release-diff-out', releaseDiffPathId:'log-release-diff-path',
+    subtitleId:'log-subtitle',
   });
   {% if logging_is_locked %}logEditor.showLockBadgeOther({{ logging_locked_since | tojson }}, {{ logging_locked_since_ts }});{% endif %}
+
+  // config.yaml and logging.yaml have no release comparison target; hide their buttons
+  ['cfg-release-diff-btn', 'log-release-diff-btn'].forEach(function(id) {
+    var btn = document.getElementById(id);
+    if (btn) btn.classList.add('hidden');
+  });
   {% endif %}
 </script>
 {% endblock %}

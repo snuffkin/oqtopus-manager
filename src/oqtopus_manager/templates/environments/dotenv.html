@@ -64,7 +64,7 @@
     </svg>
     <div class="flex-1 min-w-0">
       <h2 class="text-sm font-semibold text-[#4887FA]">.env</h2>
-      <p class="text-xs text-gray-400 font-mono mt-0.5 truncate">{{ dotenv_path }}</p>
+      <p id="dotenv-subtitle" class="text-xs text-gray-400 font-mono mt-0.5 truncate">{{ dotenv_path }}</p>
     </div>
     <div class="flex items-center gap-2 flex-shrink-0" onclick="event.stopPropagation()">
       <span id="lock-badge" class="inline-flex items-center gap-1 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1{% if not is_locked %} hidden{% endif %}">
@@ -80,6 +80,14 @@
           <path d="M7 11V7a5 5 0 0 1 9.9-1"/>
         </svg>
         Force Unlock
+      </button>
+      <button id="release-diff-btn" onclick="showReleaseDiff()" class="btn btn-ghost btn-sm text-gray-400 hover:text-gray-600 gap-1{% if is_locked %} hidden{% endif %}">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="18" cy="18" r="3"/>
+          <circle cx="6" cy="6" r="3"/>
+          <path d="M6 21V9a9 9 0 0 0 9 9"/>
+        </svg>
+        Diff with release
       </button>
       <button id="edit-btn" onclick="startEdit()" class="btn btn-ghost btn-sm text-gray-400 hover:text-gray-600 gap-1{% if is_locked %} hidden{% endif %}">
         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -169,6 +177,20 @@
     </div>
     <div class="px-5 pb-5">
       <pre id="diff-output" class="m-0 p-4 rounded-lg border border-gray-200 bg-gray-50 text-sm leading-relaxed font-mono overflow-auto" style="height: calc(100vh - 22rem);"></pre>
+    </div>
+  </div>
+
+  <!-- Release diff section (hidden initially) -->
+  <div id="release-diff-section" class="hidden border-t border-gray-200">
+    <div class="flex items-start justify-between px-5 pt-4 pb-2">
+      <div class="min-w-0 flex-1 space-y-1">
+        <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Diff with release</p>
+        <p id="release-diff-path" class="text-xs font-mono bg-red-50 text-red-800 px-2 py-0.5 rounded w-fit ml-6"></p>
+      </div>
+      <button onclick="hideReleaseDiff()" class="btn btn-sm btn-outline ml-4 flex-shrink-0">Close</button>
+    </div>
+    <div class="px-5 pb-5">
+      <pre id="release-diff-output" class="m-0 p-4 rounded-lg border border-gray-200 bg-gray-50 text-sm leading-relaxed font-mono overflow-auto" style="height: calc(100vh - 22rem); white-space: pre-wrap;"></pre>
     </div>
   </div>
 
@@ -301,6 +323,7 @@
         document.getElementById('lock-badge').classList.add('hidden');
         document.getElementById('force-unlock-btn').classList.add('hidden');
         document.getElementById('edit-btn').classList.remove('hidden');
+        document.getElementById('release-diff-btn').classList.remove('hidden');
       }
     }
   }
@@ -331,6 +354,7 @@
     // Show self-owned lock badge with countdown
     document.getElementById('lock-badge').classList.remove('hidden');
     document.getElementById('edit-btn').classList.add('hidden');
+    document.getElementById('release-diff-btn').classList.add('hidden');
     document.getElementById('force-unlock-btn').classList.add('hidden');
     document.getElementById('download-btn').classList.add('hidden');
     document.getElementById('preview-btn').classList.remove('hidden');
@@ -401,7 +425,56 @@
     document.getElementById('preview-btn').classList.add('hidden');
     document.getElementById('cancel-btn').classList.add('hidden');
     document.getElementById('edit-btn').classList.remove('hidden');
+    document.getElementById('release-diff-btn').classList.remove('hidden');
     document.getElementById('download-btn').classList.remove('hidden');
+  }
+
+  // ── Release diff ─────────────────────────────────────────────────────────
+
+  async function showReleaseDiff() {
+    document.getElementById('release-diff-btn').classList.add('hidden');
+    document.getElementById('edit-btn').classList.add('hidden');
+    document.getElementById('download-btn').classList.add('hidden');
+    var res = await fetch(urlPrefix + '/' + envName + '/dotenv/release-diff');
+    var d = await res.json();
+    document.getElementById('release-diff-path').textContent = d.installed_path || '';
+    var subtitle = document.getElementById('dotenv-subtitle');
+    if (subtitle) { subtitle.classList.remove('text-gray-400'); subtitle.classList.add('bg-green-50', 'text-green-800', 'px-2', 'py-0.5', 'rounded', 'w-fit'); }
+    var out = document.getElementById('release-diff-output');
+    if (!d.installed_content) {
+      out.innerHTML = '<span class="diff-eq">  Template file not found.</span>';
+    } else {
+      var hunks = Diff.diffLines(d.installed_content, rawContent);
+      var hasChanges = hunks.some(function(h) { return h.added || h.removed; });
+      if (!hasChanges) {
+        out.innerHTML = '<span class="diff-eq">  (no differences)</span>';
+      } else {
+        out.innerHTML = hunks.map(function(hunk) {
+          var lines = hunk.value.split('\n');
+          if (lines[lines.length - 1] === '') lines.pop();
+          var prefix = hunk.added ? '+ ' : hunk.removed ? '- ' : '  ';
+          var cls = hunk.added ? 'diff-add' : hunk.removed ? 'diff-del' : 'diff-eq';
+          return lines.map(function(line) {
+            return '<span class="' + cls + '">' + prefix + esc(line) + '</span>';
+          }).join('');
+        }).join('');
+      }
+    }
+    document.getElementById('view-section').classList.add('hidden');
+    document.getElementById('release-diff-section').classList.remove('hidden');
+  }
+
+  function hideReleaseDiff() {
+    document.getElementById('release-diff-section').classList.add('hidden');
+    document.getElementById('view-section').classList.remove('hidden');
+    document.getElementById('release-diff-btn').classList.remove('hidden');
+    document.getElementById('download-btn').classList.remove('hidden');
+    var subtitle = document.getElementById('dotenv-subtitle');
+    if (subtitle) { subtitle.classList.add('text-gray-400'); subtitle.classList.remove('bg-green-50', 'text-green-800', 'px-2', 'py-0.5', 'rounded', 'w-fit'); }
+    // Restore edit button only when no other user's lock is active
+    if (document.getElementById('force-unlock-btn').classList.contains('hidden')) {
+      document.getElementById('edit-btn').classList.remove('hidden');
+    }
   }
 
   // ── Diff ─────────────────────────────────────────────────────────────────

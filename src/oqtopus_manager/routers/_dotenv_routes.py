@@ -4,12 +4,9 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+import httpx
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
-
-if TYPE_CHECKING:
-    import pathlib
-    from collections.abc import Sequence
 
 from oqtopus_manager.auth.fastapi import require_permission
 from oqtopus_manager.routers._file_edit import (
@@ -27,12 +24,45 @@ from oqtopus_manager.routers._utils import (
     _get_templates,
 )
 
+if TYPE_CHECKING:
+    import pathlib
+    from collections.abc import Sequence
 
-def make_dotenv_router(url_prefix: str, tags: Sequence[str]) -> APIRouter:
-    """Return an APIRouter with all .env editor routes wired to ``url_prefix``.
+
+async def _fetch_dotenv_template(raw_url: str) -> str | None:
+    """Fetch the upstream .env template from GitHub.
 
     Returns:
-        APIRouter with force-unlock, lock, unlock, save, download, and view routes.
+        Template content, or None on network/HTTP failure.
+
+    """
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            resp = await client.get(raw_url)
+            resp.raise_for_status()
+            return resp.text
+    except httpx.HTTPError, httpx.TimeoutException:
+        return None
+
+
+def make_dotenv_router(
+    url_prefix: str,
+    tags: Sequence[str],
+    *,
+    release_diff_raw_url: str,
+    release_diff_display_url: str,
+) -> APIRouter:
+    """Return an APIRouter with all .env editor routes wired to ``url_prefix``.
+
+    Args:
+        url_prefix: URL prefix for the router (e.g. "/backend").
+        tags: OpenAPI tags for the router.
+        release_diff_raw_url: Raw GitHub URL of the upstream .env template.
+        release_diff_display_url: Browser-friendly GitHub URL shown in the diff panel.
+
+    Returns:
+        APIRouter with force-unlock, lock, unlock, save, download, release-diff,
+        and view routes.
 
     """
     router = APIRouter(prefix=url_prefix, tags=tags)  # type: ignore[arg-type]
@@ -108,6 +138,17 @@ def make_dotenv_router(url_prefix: str, tags: Sequence[str]) -> APIRouter:
         if not dotenv_path.exists():
             raise HTTPException(status_code=404, detail="config/.env not found.")
         return FileResponse(path=dotenv_path, filename=".env", media_type="text/plain")
+
+    @router.get(
+        "/{name}/dotenv/release-diff",
+        dependencies=[require_permission("environment.config.get")],
+    )
+    async def dotenv_release_diff(name: str) -> JSONResponse:  # noqa: ARG001
+        content = await _fetch_dotenv_template(release_diff_raw_url)
+        return JSONResponse({
+            "installed_content": content,
+            "installed_path": release_diff_display_url,
+        })
 
     @router.get(
         "/{name}/dotenv",
