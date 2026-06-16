@@ -55,6 +55,7 @@
     line-height: 1.5;
     padding: 0.75rem 1rem;
     background: #f9fafb;
+    white-space: pre-wrap;
   }
   details.is-fullscreen {
     position: fixed !important; inset: 0 !important;
@@ -166,6 +167,9 @@
     dlBtnId: 'cfg-download-btn',
     badgeId: 'cfg-lock-badge', badgeTextId: 'cfg-lock-badge-text', fuBtnId: 'cfg-force-unlock-btn',
     fsExpandId: 'cfg-fs-expand', fsCollapseId: 'cfg-fs-collapse',
+    releaseDiffBtnId: 'cfg-release-diff-btn', releaseDiffId: 'cfg-release-diff',
+    releaseDiffOutId: 'cfg-release-diff-out', releaseDiffPathId: 'cfg-release-diff-path',
+    subtitleId: 'cfg-subtitle',
   });
   {% if config_is_locked %}
   cfgEditor.showLockBadgeOther({{ config_locked_since | tojson }}, {{ config_locked_since_ts }});
@@ -184,6 +188,9 @@
     dlBtnId: 'log-download-btn',
     badgeId: 'log-lock-badge', badgeTextId: 'log-lock-badge-text', fuBtnId: 'log-force-unlock-btn',
     fsExpandId: 'log-fs-expand', fsCollapseId: 'log-fs-collapse',
+    releaseDiffBtnId: 'log-release-diff-btn', releaseDiffId: 'log-release-diff',
+    releaseDiffOutId: 'log-release-diff-out', releaseDiffPathId: 'log-release-diff-path',
+    subtitleId: 'log-subtitle',
   });
   {% if logging_is_locked %}
   logEditor.showLockBadgeOther({{ logging_locked_since | tojson }}, {{ logging_locked_since_ts }});
@@ -195,7 +202,7 @@
     rawContent: {{ topology_content | tojson }},
     lockTimeoutSec: {{ lock_timeout_sec }},
     language: 'json',
-    baseUrl: '/backend/' + envName + '/gateway/topology-json',
+    baseUrl: '/backend/' + envName + '/services/gateway/topology-json',
     detailsId: 'details-topo',
     viewId: 'topo-view',    editId: 'topo-edit',    diffId: 'topo-diff',
     editPreId: 'topo-edit-pre', editTaId: 'topo-edit-ta', diffOutId: 'topo-diff-out',
@@ -203,6 +210,9 @@
     dlBtnId: 'topo-download-btn',
     badgeId: 'topo-lock-badge', badgeTextId: 'topo-lock-badge-text', fuBtnId: 'topo-force-unlock-btn',
     fsExpandId: 'topo-fs-expand', fsCollapseId: 'topo-fs-collapse',
+    releaseDiffBtnId: 'topo-release-diff-btn', releaseDiffId: 'topo-release-diff',
+    releaseDiffOutId: 'topo-release-diff-out', releaseDiffPathId: 'topo-release-diff-path',
+    subtitleId: 'topo-subtitle',
   });
   {% if topology_is_locked %}
   topoEditor.showLockBadgeOther({{ topology_locked_since | tojson }}, {{ topology_locked_since_ts }});

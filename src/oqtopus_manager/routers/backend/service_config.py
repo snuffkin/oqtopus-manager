@@ -28,6 +28,8 @@ from oqtopus_manager.routers._utils import (
 from oqtopus_manager.routers.backend._utils import (
     _config_which_to_filename,
     _load_topology_context,
+    _read_metadata,
+    _resolve_installed_config_path,
     _resolve_topology_path,
 )
 
@@ -169,7 +171,7 @@ async def save_service_config(
 
 
 @router.post(
-    "/{name}/gateway/topology-json/force-unlock",
+    "/{name}/services/gateway/topology-json/force-unlock",
     dependencies=[require_permission("environment.config.update")],
 )
 async def force_unlock_gateway_topology_json(
@@ -187,7 +189,7 @@ async def force_unlock_gateway_topology_json(
 
 
 @router.post(
-    "/{name}/gateway/topology-json/lock",
+    "/{name}/services/gateway/topology-json/lock",
     dependencies=[require_permission("environment.config.update")],
 )
 async def acquire_gateway_topology_json_lock(
@@ -206,7 +208,7 @@ async def acquire_gateway_topology_json_lock(
 
 
 @router.post(
-    "/{name}/gateway/topology-json/unlock",
+    "/{name}/services/gateway/topology-json/unlock",
     dependencies=[require_permission("environment.config.update")],
 )
 async def release_gateway_topology_json_lock(
@@ -225,7 +227,7 @@ async def release_gateway_topology_json_lock(
 
 
 @router.post(
-    "/{name}/gateway/topology-json/save",
+    "/{name}/services/gateway/topology-json/save",
     dependencies=[require_permission("environment.config.update")],
 )
 async def save_gateway_topology_json(
@@ -246,7 +248,7 @@ async def save_gateway_topology_json(
 
 
 @router.get(
-    "/{name}/gateway/topology-json/download",
+    "/{name}/services/gateway/topology-json/download",
     dependencies=[require_permission("environment.config.get")],
 )
 async def gateway_topology_json_download(request: Request, name: str) -> FileResponse:
@@ -264,3 +266,61 @@ async def gateway_topology_json_download(request: Request, name: str) -> FileRes
     if not path.exists():
         raise HTTPException(status_code=404, detail="Topology JSON file not found.")
     return FileResponse(path=path, filename=path.name, media_type="application/json")
+
+
+@router.get(
+    "/{name}/services/{service}/config/{which}/release-diff",
+    dependencies=[require_permission("environment.config.get")],
+)
+async def service_config_release_diff(
+    request: Request, name: str, service: str, which: str
+) -> JSONResponse:
+    """Return the installed release config content for diffing against the managed one.
+
+    Returns:
+        JSONResponse with installed_content and installed_path (either str or null).
+
+    """
+    cfg = _get_config(request)
+    env = _get_environment_or_404(name, cfg)
+    filename = _config_which_to_filename(which)
+    resolved = env.resolved_root_path(cfg.default_environment_base_path)
+    meta = _read_metadata(resolved)
+    installed_path = _resolve_installed_config_path(service, filename, meta, resolved)
+    installed_content = None
+    if installed_path is not None and installed_path.exists():
+        installed_content = installed_path.read_text(encoding="utf-8")
+    return JSONResponse({
+        "installed_content": installed_content,
+        "installed_path": str(installed_path) if installed_path else None,
+    })
+
+
+@router.get(
+    "/{name}/services/gateway/topology-json/release-diff",
+    dependencies=[require_permission("environment.config.get")],
+)
+async def gateway_topology_json_release_diff(
+    request: Request, name: str
+) -> JSONResponse:
+    """Return the installed release topology JSON content for diffing.
+
+    Returns:
+        JSONResponse with installed_content and installed_path (either str or null).
+
+    """
+    cfg = _get_config(request)
+    env = _get_environment_or_404(name, cfg)
+    resolved = env.resolved_root_path(cfg.default_environment_base_path)
+    current_path = _resolve_topology_path(name, cfg)
+    meta = _read_metadata(resolved)
+    installed_path = _resolve_installed_config_path(
+        "gateway", current_path.name, meta, resolved
+    )
+    installed_content = None
+    if installed_path is not None and installed_path.exists():
+        installed_content = installed_path.read_text(encoding="utf-8")
+    return JSONResponse({
+        "installed_content": installed_content,
+        "installed_path": str(installed_path) if installed_path else None,
+    })

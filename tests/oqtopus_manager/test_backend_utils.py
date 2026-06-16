@@ -16,6 +16,7 @@ from oqtopus_manager.routers.backend._utils import (
     _load_topology_context,
     _read_metadata,
     _read_path_from_yaml,
+    _resolve_installed_config_path,
 )
 
 
@@ -185,3 +186,81 @@ class TestConfigWhichToFilename:
         with pytest.raises(HTTPException) as exc_info:
             _config_which_to_filename("other")
         assert exc_info.value.status_code == 400
+
+
+class TestResolveInstalledConfigPath:
+    def _meta(self, **kwargs: str) -> dict[str, str]:
+        base = {"install_root": "/releases", "engine_version": "v1.0.0", "tranqu_version": "v2.0.0", "gateway_version": "v3.0.0"}
+        base.update(kwargs)
+        return base
+
+    def test_engine_core_release(self, tmp_path: pathlib.Path) -> None:
+        result = _resolve_installed_config_path("core", "config.yaml", self._meta(), tmp_path)
+        assert result == pathlib.Path("/releases/engine-v1.0.0/core/config/config.yaml")
+
+    def test_engine_sse_engine_uses_core_subdir(self, tmp_path: pathlib.Path) -> None:
+        result = _resolve_installed_config_path("sse_engine", "config.yaml", self._meta(), tmp_path)
+        assert result == pathlib.Path("/releases/engine-v1.0.0/core/config/sse_engine_config.yaml")
+
+    def test_engine_sse_engine_logging_uses_prefixed_filename(self, tmp_path: pathlib.Path) -> None:
+        result = _resolve_installed_config_path("sse_engine", "logging.yaml", self._meta(), tmp_path)
+        assert result == pathlib.Path("/releases/engine-v1.0.0/core/config/sse_engine_logging.yaml")
+
+    def test_engine_combiner_release(self, tmp_path: pathlib.Path) -> None:
+        result = _resolve_installed_config_path("combiner", "logging.yaml", self._meta(), tmp_path)
+        assert result == pathlib.Path("/releases/engine-v1.0.0/combiner/config/logging.yaml")
+
+    def test_engine_estimator_release(self, tmp_path: pathlib.Path) -> None:
+        result = _resolve_installed_config_path("estimator", "config.yaml", self._meta(), tmp_path)
+        assert result == pathlib.Path("/releases/engine-v1.0.0/estimator/config/config.yaml")
+
+    def test_engine_mitigator_release(self, tmp_path: pathlib.Path) -> None:
+        result = _resolve_installed_config_path("mitigator", "config.yaml", self._meta(), tmp_path)
+        assert result == pathlib.Path("/releases/engine-v1.0.0/mitigator/config/config.yaml")
+
+    def test_tranqu_release(self, tmp_path: pathlib.Path) -> None:
+        result = _resolve_installed_config_path("tranqu", "config.yaml", self._meta(), tmp_path)
+        assert result == pathlib.Path("/releases/tranqu-v2.0.0/config/config.yaml")
+
+    def test_gateway_release_config_uses_qulacs_filename(self, tmp_path: pathlib.Path) -> None:
+        result = _resolve_installed_config_path("gateway", "config.yaml", self._meta(), tmp_path)
+        assert result == pathlib.Path("/releases/gateway-v3.0.0/config/config.yaml.qulacs")
+
+    def test_gateway_release_logging_keeps_filename(self, tmp_path: pathlib.Path) -> None:
+        result = _resolve_installed_config_path("gateway", "logging.yaml", self._meta(), tmp_path)
+        assert result == pathlib.Path("/releases/gateway-v3.0.0/config/logging.yaml")
+
+    def test_gateway_topology_uses_example_subdir(self, tmp_path: pathlib.Path) -> None:
+        result = _resolve_installed_config_path(
+            "gateway", "device_topology_sim.json", self._meta(), tmp_path
+        )
+        assert result == pathlib.Path(
+            "/releases/gateway-v3.0.0/config/example/device_topology_sim.json"
+        )
+
+    def test_engine_branch_uses_env_root(self, tmp_path: pathlib.Path) -> None:
+        meta = self._meta(engine_version="branch:main")
+        result = _resolve_installed_config_path("core", "config.yaml", meta, tmp_path)
+        assert result == tmp_path / "engine" / "core" / "config" / "config.yaml"
+
+    def test_sse_engine_branch_uses_core_subdir(self, tmp_path: pathlib.Path) -> None:
+        meta = self._meta(engine_version="branch:develop")
+        result = _resolve_installed_config_path("sse_engine", "config.yaml", meta, tmp_path)
+        assert result == tmp_path / "engine" / "core" / "config" / "config.yaml"
+
+    def test_tranqu_branch_uses_env_root(self, tmp_path: pathlib.Path) -> None:
+        meta = self._meta(tranqu_version="branch:main")
+        result = _resolve_installed_config_path("tranqu", "config.yaml", meta, tmp_path)
+        assert result == tmp_path / "tranqu" / "config" / "config.yaml"
+
+    def test_gateway_branch_uses_env_root(self, tmp_path: pathlib.Path) -> None:
+        meta = self._meta(gateway_version="branch:feature-x")
+        result = _resolve_installed_config_path("gateway", "config.yaml", meta, tmp_path)
+        assert result == tmp_path / "gateway" / "config" / "config.yaml"
+
+    def test_no_install_root_returns_none_for_release(self, tmp_path: pathlib.Path) -> None:
+        meta = {"engine_version": "v1.0.0"}
+        assert _resolve_installed_config_path("core", "config.yaml", meta, tmp_path) is None
+
+    def test_unknown_service_returns_none(self, tmp_path: pathlib.Path) -> None:
+        assert _resolve_installed_config_path("unknown", "config.yaml", self._meta(), tmp_path) is None

@@ -169,6 +169,99 @@ def _resolve_topology_path(name: str, cfg: AppConfig) -> pathlib.Path:
     return path
 
 
+_ENGINE_SERVICES = frozenset({
+    "core",
+    "sse_engine",
+    "combiner",
+    "estimator",
+    "mitigator",
+})
+
+# sse_engine config files are prefixed in the release package
+_SSE_ENGINE_FILENAME: dict[str, str] = {
+    "config.yaml": "sse_engine_config.yaml",
+    "logging.yaml": "sse_engine_logging.yaml",
+}
+
+# sse_engine ships inside core's source tree in the release package
+_ENGINE_RELEASE_SUBDIR: dict[str, str] = {
+    "core": "core",
+    "sse_engine": "core",
+    "combiner": "combiner",
+    "estimator": "estimator",
+    "mitigator": "mitigator",
+}
+
+# Maps non-engine service names to (version_key, directory_prefix)
+_COMPONENT_MAP: dict[str, tuple[str, str]] = {
+    "tranqu": ("tranqu_version", "tranqu"),
+    "gateway": ("gateway_version", "gateway"),
+}
+
+# gateway config.yaml uses a different filename in the release package
+_GATEWAY_FILENAME: dict[str, str] = {
+    "config.yaml": "config.yaml.qulacs",
+}
+
+# standard per-service config files for gateway; anything else is a topology file
+_GATEWAY_KNOWN_CONFIGS = frozenset({"config.yaml", "logging.yaml"})
+
+
+def _resolve_installed_config_path(
+    service: str,
+    filename: str,
+    meta: dict[str, str],
+    env_root: pathlib.Path,
+) -> pathlib.Path | None:
+    """Resolve the path to the installed (release or branch) config file.
+
+    Returns:
+        Resolved Path, or None when the service is unknown or install_root
+        is absent for a release version.
+
+    """
+    install_root = meta.get("install_root")
+    release_parts: tuple[str, ...]
+
+    if service in _ENGINE_SERVICES:
+        version = meta.get("engine_version", "")
+        subdir = _ENGINE_RELEASE_SUBDIR[service]
+        branch_path = env_root / "engine" / subdir / "config" / filename
+        # sse_engine uses a prefixed filename in the release package
+        if service == "sse_engine":
+            release_filename = _SSE_ENGINE_FILENAME.get(filename, filename)
+        else:
+            release_filename = filename
+        # Engine release layout: {install_root}/engine-{version}/{subdir}/config/
+        release_parts = (f"engine-{version}", subdir, "config", release_filename)
+    elif service in _COMPONENT_MAP:
+        version_key, component = _COMPONENT_MAP[service]
+        version = meta.get(version_key, "")
+        branch_path = env_root / component / "config" / filename
+        if component == "gateway":
+            if filename in _GATEWAY_KNOWN_CONFIGS:
+                release_filename = _GATEWAY_FILENAME.get(filename, filename)
+                release_parts = (f"{component}-{version}", "config", release_filename)
+            else:
+                # topology JSON files live in config/example/ in the release package
+                release_parts = (
+                    f"{component}-{version}",
+                    "config",
+                    "example",
+                    filename,
+                )
+        else:
+            release_parts = (f"{component}-{version}", "config", filename)
+    else:
+        return None
+
+    if version.startswith("branch:"):
+        return branch_path
+    if not install_root:
+        return None
+    return pathlib.Path(install_root).joinpath(*release_parts)
+
+
 def _components_installed(install_root: str) -> bool:
     """Return True if at least one component directory exists under install_root.
 
