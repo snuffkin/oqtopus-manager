@@ -1,5 +1,6 @@
 """Authentication package: providers and configuration models (framework-agnostic)."""
 
+from .base import AuthContext
 from .config import (
     AuthConfig,
     HeaderProviderConfig,
@@ -16,6 +17,7 @@ from .providers import AuthenticationError, AuthProvider, AuthUser, build_provid
 
 __all__ = [
     "AuthConfig",
+    "AuthContext",
     "AuthProvider",
     "AuthUser",
     "AuthenticationError",

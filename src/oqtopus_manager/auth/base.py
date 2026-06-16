@@ -3,11 +3,8 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from collections.abc import Iterator, Mapping
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from fastapi import Request
 
 
 @dataclass
@@ -32,12 +29,32 @@ class AuthenticationError(Exception):
         self.reason = reason
 
 
+class AuthContext(Mapping[str, str]):
+    """Framework-agnostic authentication context passed to providers.
+
+    Behaves as a read-only mapping so providers can call ``context.get(key)``
+    without depending on any web framework.
+    """
+
+    def __init__(self, context: Mapping[str, str]) -> None:
+        self._context = context
+
+    def __getitem__(self, key: str) -> str:  # noqa: D105
+        return self._context[key]
+
+    def __iter__(self) -> Iterator[str]:  # noqa: D105
+        return iter(self._context)
+
+    def __len__(self) -> int:  # noqa: D105
+        return len(self._context)
+
+
 class AuthProvider(ABC):
     """Abstract base for authentication providers."""
 
     @abstractmethod
-    async def authenticate(self, request: Request) -> AuthUser | None:
-        """Authenticate the request.
+    async def authenticate(self, context: AuthContext) -> AuthUser | None:
+        """Authenticate the request context.
 
         Returns:
             ``AuthUser`` on success, or ``None`` when the provider is disabled

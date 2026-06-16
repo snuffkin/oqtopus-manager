@@ -9,11 +9,9 @@ from typing import TYPE_CHECKING, override
 import jwt
 from jwt import PyJWKClient
 
-from .base import AuthenticationError, AuthProvider, AuthUser
+from .base import AuthContext, AuthenticationError, AuthProvider, AuthUser
 
 if TYPE_CHECKING:
-    from fastapi import Request
-
     from .config import (
         HeaderProviderConfig,
         SignatureVerificationConfig,
@@ -110,7 +108,7 @@ class HeaderProvider(AuthProvider):
         self._role_mappings = role_mappings
 
     @override
-    async def authenticate(self, request: Request) -> AuthUser | None:
+    async def authenticate(self, context: AuthContext) -> AuthUser | None:
         """Extract user and roles from JWT claims, then optionally verify the signature.
 
         Returns:
@@ -124,7 +122,7 @@ class HeaderProvider(AuthProvider):
         header_config = self._header_config
 
         # Extract raw JWT from the configured header
-        header_value = request.headers.get(header_config.jwt_header, "")
+        header_value = context.get(header_config.jwt_header, "")
         token = extract_token(header_config.jwt_header, header_value)
         if not token:
             msg = "missing JWT"

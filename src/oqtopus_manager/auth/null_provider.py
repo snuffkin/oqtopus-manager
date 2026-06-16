@@ -4,11 +4,9 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, override
 
-from .base import AuthProvider, AuthUser
+from .base import AuthContext, AuthProvider, AuthUser
 
 if TYPE_CHECKING:
-    from fastapi import Request
-
     from .config import NoneProviderConfig
 
 
@@ -23,7 +21,7 @@ class NullProvider(AuthProvider):
         )
 
     @override
-    async def authenticate(self, request: Request) -> AuthUser | None:
+    async def authenticate(self, context: AuthContext) -> AuthUser | None:
         """Return a virtual user built from the ``auth.none`` config section.
 
         Returns:

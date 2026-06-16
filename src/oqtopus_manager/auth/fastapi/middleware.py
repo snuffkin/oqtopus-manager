@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING, override
 from fastapi.responses import HTMLResponse, Response
 from starlette.middleware.base import BaseHTTPMiddleware
 
+from ..base import AuthContext  # noqa: TID252
 from ..providers import AuthenticationError, build_provider  # noqa: TID252
 
 if TYPE_CHECKING:
@@ -39,7 +40,8 @@ class AuthMiddleware(BaseHTTPMiddleware):
         """
         request.state.user = None
         try:
-            request.state.user = await self._provider.authenticate(request)
+            auth_context = AuthContext(context=request.headers)
+            request.state.user = await self._provider.authenticate(auth_context)
         except AuthenticationError as e:
             return HTMLResponse(f"403 Forbidden: {e.reason}", status_code=403)
         return await call_next(request)

@@ -9,6 +9,7 @@ import pytest
 import yaml
 from fastapi.testclient import TestClient
 
+from oqtopus_manager.auth.base import AuthContext
 from oqtopus_manager.auth.config import AuthConfig, HeaderProviderConfig, NoneProviderConfig, SignatureVerificationConfig
 from oqtopus_manager.auth.header_provider import _extract_roles, extract_token, _get_claim
 from oqtopus_manager.auth.providers import (
@@ -144,7 +145,7 @@ class TestBuildProvider:
 
         cfg = self._make_auth_cfg("none")
         provider = build_provider(cfg)
-        user = asyncio.run(provider.authenticate(None))  # type: ignore[arg-type]
+        user = asyncio.run(provider.authenticate(AuthContext(context={})))
         assert user is not None
         assert user.account == "test_user"
         assert user.roles == ["operator"]
