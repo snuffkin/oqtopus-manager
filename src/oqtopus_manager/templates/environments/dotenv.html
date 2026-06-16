@@ -29,6 +29,7 @@
     height: calc(100vh - 8rem) !important;
   }
 </style>
+<script src="https://cdn.jsdelivr.net/npm/diff@5.2.0/dist/diff.min.js"></script>
 {% endblock %}
 
 {% block page_banner %}
@@ -405,40 +406,22 @@
 
   // ── Diff ─────────────────────────────────────────────────────────────────
 
-  function lcs(a, b) {
-    var m = a.length, n = b.length;
-    var dp = [];
-    for (var i = 0; i <= m; i++) { dp.push(new Array(n + 1).fill(0)); }
-    for (var i = 1; i <= m; i++) {
-      for (var j = 1; j <= n; j++) {
-        dp[i][j] = a[i-1] === b[j-1] ? dp[i-1][j-1] + 1 : Math.max(dp[i-1][j], dp[i][j-1]);
-      }
-    }
-    var result = [], i = m, j = n;
-    while (i > 0 || j > 0) {
-      if (i > 0 && j > 0 && a[i-1] === b[j-1]) {
-        result.push({ type: '=', line: a[i-1] }); i--; j--;
-      } else if (j > 0 && (i === 0 || dp[i][j-1] >= dp[i-1][j])) {
-        result.push({ type: '+', line: b[j-1] }); j--;
-      } else {
-        result.push({ type: '-', line: a[i-1] }); i--;
-      }
-    }
-    return result.reverse();
-  }
-
   function showDiff() {
     var newContent = document.getElementById('edit-textarea').value;
-    var diff = lcs(rawContent.split('\n'), newContent.split('\n'));
-    var hasChanges = diff.some(function (d) { return d.type !== '='; });
+    var hunks = Diff.diffLines(rawContent, newContent);
+    var hasChanges = hunks.some(function(h) { return h.added || h.removed; });
     var html;
     if (!hasChanges) {
       html = '<span class="diff-eq">  (no changes)</span>';
     } else {
-      html = diff.map(function (d) {
-        var prefix = d.type === '+' ? '+ ' : d.type === '-' ? '- ' : '  ';
-        var cls    = d.type === '+' ? 'diff-add' : d.type === '-' ? 'diff-del' : 'diff-eq';
-        return '<span class="' + cls + '">' + prefix + esc(d.line) + '</span>';
+      html = hunks.map(function(hunk) {
+        var lines = hunk.value.split('\n');
+        if (lines[lines.length - 1] === '') lines.pop();
+        var prefix = hunk.added ? '+ ' : hunk.removed ? '- ' : '  ';
+        var cls    = hunk.added ? 'diff-add' : hunk.removed ? 'diff-del' : 'diff-eq';
+        return lines.map(function(line) {
+          return '<span class="' + cls + '">' + prefix + esc(line) + '</span>';
+        }).join('');
       }).join('');
     }
     document.getElementById('diff-output').innerHTML = html;

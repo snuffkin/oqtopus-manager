@@ -17,34 +17,15 @@ function _renderDiff(lines) {
   }).join('');
 }
 
-function _diff(oldArr, newArr) {
-  // Trim identical prefix and suffix first to narrow the LCS target area.
-  // Without this, LCS on repetitive content (e.g. JSON arrays) can match lines
-  // from different objects, making changes appear in the wrong position.
-  var start = 0;
-  while (start < oldArr.length && start < newArr.length && oldArr[start] === newArr[start]) start++;
-  var tail = 0;
-  while (tail < oldArr.length - start && tail < newArr.length - start &&
-         oldArr[oldArr.length - 1 - tail] === newArr[newArr.length - 1 - tail]) tail++;
-  var eq = function(l) { return {t: '=', l: l}; };
-  return oldArr.slice(0, start).map(eq)
-    .concat(_lcs(oldArr.slice(start, oldArr.length - tail), newArr.slice(start, newArr.length - tail)))
-    .concat(oldArr.slice(oldArr.length - tail).map(eq));
-}
-
-function _lcs(a, b) {
-  var m = a.length, n = b.length;
-  var dp = Array.from({length: m+1}, function() { return new Array(n+1).fill(0); });
-  for (var row = 1; row <= m; row++)
-    for (var col = 1; col <= n; col++)
-      dp[row][col] = a[row-1] === b[col-1] ? dp[row-1][col-1]+1 : Math.max(dp[row-1][col], dp[row][col-1]);
-  var res = [], r = m, c = n;
-  while (r > 0 || c > 0) {
-    if (r > 0 && c > 0 && a[r-1] === b[c-1]) { res.unshift({t:'=', l:a[r-1]}); r--; c--; }
-    else if (c > 0 && (r === 0 || dp[r][c-1] >= dp[r-1][c])) { res.unshift({t:'+', l:b[c-1]}); c--; }
-    else { res.unshift({t:'-', l:a[r-1]}); r--; }
-  }
-  return res;
+function _computeDiff(oldStr, newStr) {
+  var result = [];
+  Diff.diffLines(oldStr, newStr).forEach(function(hunk) {
+    var lines = hunk.value.split('\n');
+    if (lines[lines.length - 1] === '') lines.pop();
+    var t = hunk.added ? '+' : hunk.removed ? '-' : '=';
+    lines.forEach(function(line) { result.push({t: t, l: line}); });
+  });
+  return result;
 }
 
 function makeEditor(o) {
@@ -108,7 +89,7 @@ function makeEditor(o) {
     document.getElementById('force-unlock-modal').classList.remove('hidden');
   }
   function showDiff() {
-    var diff = _diff(raw.split('\n'), editTa.value.split('\n'));
+    var diff = _computeDiff(raw, editTa.value);
     diffOut.innerHTML = _renderDiff(diff);
     editEl.classList.add('hidden'); previewBtn.classList.add('hidden'); cancelBtn.classList.add('hidden'); diffEl.classList.remove('hidden');
   }
@@ -132,7 +113,7 @@ function makeEditor(o) {
         if (!d.installed_content) {
           releaseDiffOut.innerHTML = '<div class="py-6 text-center text-sm text-gray-400">Installed config file not found.</div>';
         } else {
-          var diff = _diff(d.installed_content.split('\n'), raw.split('\n'));
+          var diff = _computeDiff(d.installed_content, raw);
           var hasDiff = diff.some(function(item) { return item.t !== '='; });
           if (!hasDiff) {
             releaseDiffOut.innerHTML = '<div class="py-6 text-center text-sm text-gray-400">No differences found.</div>';
