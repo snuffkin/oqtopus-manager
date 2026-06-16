@@ -36,8 +36,14 @@ def build_provider(cfg: AuthConfig) -> AuthProvider:
 
     """
     if cfg.provider == "none":
-        return NullProvider()
+        if cfg.none is None:
+            msg = "auth.none config is required when provider=none"
+            raise ValueError(msg)
+        return NullProvider(cfg.none)
     if cfg.provider == "header":
-        return HeaderProvider(cfg)
+        if cfg.header is None:
+            msg = "auth.header config is required when provider=header"
+            raise ValueError(msg)
+        return HeaderProvider(cfg.header, cfg.role_mappings)
     msg = f"Unknown auth provider: {cfg.provider!r}"
     raise ValueError(msg)

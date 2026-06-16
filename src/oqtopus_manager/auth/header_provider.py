@@ -15,7 +15,6 @@ if TYPE_CHECKING:
     from fastapi import Request
 
     from .config import (
-        AuthConfig,
         HeaderProviderConfig,
         SignatureVerificationConfig,
     )
@@ -104,12 +103,11 @@ def _verify_jwt(token: str, sig_cfg: SignatureVerificationConfig) -> None:
 class HeaderProvider(AuthProvider):
     """Provider that extracts user and roles from JWT claims set by a reverse proxy."""
 
-    def __init__(self, cfg: AuthConfig) -> None:
-        if cfg.header is None:
-            msg = "HeaderProvider requires header configuration"
-            raise ValueError(msg)
-        self._cfg = cfg
-        self._header: HeaderProviderConfig = cfg.header
+    def __init__(
+        self, header_config: HeaderProviderConfig, role_mappings: dict[str, str]
+    ) -> None:
+        self._header_config = header_config
+        self._role_mappings = role_mappings
 
     @override
     async def authenticate(self, request: Request) -> AuthUser | None:
@@ -123,12 +121,11 @@ class HeaderProvider(AuthProvider):
                 or signature verification fails.
 
         """
-        cfg = self._cfg
-        header = self._header
+        header_config = self._header_config
 
         # Extract raw JWT from the configured header
-        header_value = request.headers.get(header.jwt_header, "")
-        token = extract_token(header.jwt_header, header_value)
+        header_value = request.headers.get(header_config.jwt_header, "")
+        token = extract_token(header_config.jwt_header, header_value)
         if not token:
             msg = "missing JWT"
             raise AuthenticationError(msg)
@@ -141,15 +138,18 @@ class HeaderProvider(AuthProvider):
             msg = "invalid JWT"
             raise AuthenticationError(msg) from None
 
-        account = str(_get_claim(payload, header.user_claim) or "")
-        raw_groups = _extract_roles(_get_claim(payload, header.roles_claim))
+        account = str(_get_claim(payload, header_config.user_claim) or "")
+        raw_groups = _extract_roles(_get_claim(payload, header_config.roles_claim))
 
         # Discard values not matching any allow_raw_roles pattern before mapping
-        if header.allow_raw_roles:
+        if header_config.allow_raw_roles:
             allowed = [
                 raw_role
                 for raw_role in raw_groups
-                if any(fnmatch.fnmatch(raw_role, pat) for pat in header.allow_raw_roles)
+                if any(
+                    fnmatch.fnmatch(raw_role, pat)
+                    for pat in header_config.allow_raw_roles
+                )
             ]
         else:
             allowed = raw_groups
@@ -159,10 +159,10 @@ class HeaderProvider(AuthProvider):
             raise AuthenticationError(msg)
 
         # Map to display name; fall back to raw value if unmapped
-        roles = [cfg.role_mappings.get(raw_role, raw_role) for raw_role in allowed]
+        roles = [self._role_mappings.get(raw_role, raw_role) for raw_role in allowed]
 
         # Verify signature if enabled
-        sig = header.signature_verification
+        sig = header_config.signature_verification
         if sig and sig.enabled:
             try:
                 _verify_jwt(token, sig)

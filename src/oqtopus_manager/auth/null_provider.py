@@ -9,21 +9,26 @@ from .base import AuthProvider, AuthUser
 if TYPE_CHECKING:
     from fastapi import Request
 
-# Virtual admin user returned when authentication is disabled,
-# so permission checks and templates behave identically to a real admin.
-_LOCAL_ADMIN = AuthUser(account="admin_user", roles=["admin"], raw_groups=[])
+    from .config import NoneProviderConfig
 
 
 class NullProvider(AuthProvider):
     """No-op provider for ``provider: none``; grants every request admin access."""
 
+    def __init__(self, cfg: NoneProviderConfig) -> None:
+        self._user = AuthUser(
+            account=cfg.default_account,
+            roles=cfg.default_roles,
+            raw_groups=[],
+        )
+
     @override
     async def authenticate(self, request: Request) -> AuthUser | None:
-        """Return a virtual admin user (authentication is disabled).
+        """Return a virtual user built from the ``auth.none`` config section.
 
         Returns:
-            A synthetic admin ``AuthUser`` so that permission checks and
-            template flags behave identically to a real admin session.
+            A synthetic ``AuthUser`` so that permission checks and
+            template flags behave identically to a real session.
 
         """
-        return _LOCAL_ADMIN
+        return self._user

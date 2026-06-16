@@ -9,7 +9,7 @@ import pytest
 import yaml
 from fastapi.testclient import TestClient
 
-from oqtopus_manager.auth.config import AuthConfig, HeaderProviderConfig, SignatureVerificationConfig
+from oqtopus_manager.auth.config import AuthConfig, HeaderProviderConfig, NoneProviderConfig, SignatureVerificationConfig
 from oqtopus_manager.auth.header_provider import _extract_roles, extract_token, _get_claim
 from oqtopus_manager.auth.providers import (
     AuthenticationError,
@@ -126,11 +126,28 @@ class TestBuildProvider:
                     ),
                 ),
             )
+        if provider == "none":
+            return AuthConfig(
+                provider="none",
+                none=NoneProviderConfig(
+                    default_account="test_user", default_roles=["operator"]
+                ),
+            )
         return AuthConfig(provider=provider)
 
     def test_none_returns_null_provider(self) -> None:
         cfg = self._make_auth_cfg("none")
         assert isinstance(build_provider(cfg), NullProvider)
+
+    def test_none_provider_uses_config_account_and_roles(self) -> None:
+        import asyncio
+
+        cfg = self._make_auth_cfg("none")
+        provider = build_provider(cfg)
+        user = asyncio.run(provider.authenticate(None))  # type: ignore[arg-type]
+        assert user is not None
+        assert user.account == "test_user"
+        assert user.roles == ["operator"]
 
     def test_unknown_provider_raises(self) -> None:
         cfg = AuthConfig(provider="unknown")
