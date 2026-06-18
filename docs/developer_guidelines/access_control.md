@@ -165,17 +165,21 @@ async def delete_widget(request: Request, widget_id: str) -> JSONResponse:
     return JSONResponse({"ok": True})
 ```
 
-#### Conditional rendering in Jinja2 templates
+#### Jinja2 templates (optional)
+
+If you use Jinja2 templates, you can check roles directly in the template or
+pass pre-computed flags from the route handler.
+
+Directly in the template:
 
 ```html+jinja
-{# Check role directly in the template when the route handler does not pre-compute it #}
 {% if request.state.user and "admin" in request.state.user.roles %}
   <button>Admin action</button>
 {% endif %}
 ```
 
-Prefer passing a pre-computed boolean from the route handler (e.g. `can_delete`)
-over embedding role checks in templates — it keeps business logic out of the
+Alternatively, pre-compute a boolean in the route handler (e.g. `can_delete`)
+and pass it to the template context. This keeps business logic out of the
 presentation layer.
 
 ---
@@ -270,13 +274,19 @@ async def delete_widget(request: Request, widget_id: str) -> JSONResponse:
 correctly even when the route decorator is evaluated before `FastAPIPermissions`
 is constructed (which is always the case in an application factory pattern).
 
-#### Template rendering
+#### Jinja2 templates (optional)
+
+If you use Jinja2 templates, pass pre-computed flags from the route handler
+and check them in the template:
 
 ```html+jinja
 {% if can_delete %}
   <button>Delete</button>
 {% endif %}
 ```
+
+You can also call `has_permission` directly in the template via the request
+object, but pre-computing in the route handler is cleaner.
 
 #### Permission naming conventions
 
