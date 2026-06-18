@@ -150,3 +150,38 @@ def test_save_environments_creates_parent_directory(tmp_path: pathlib.Path, monk
     cfg = AppConfig.load(config_path)
     cfg.save_environments([Environment(name="dev", template="backend")])
     assert cfg.environments_file.exists()
+
+
+def test_load_without_permissions_sets_none(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.chdir(tmp_path)
+    config_path = tmp_path / "config.yaml"
+    config_path.write_text(
+        yaml.dump(
+            {
+                "server": {
+                    "host": "127.0.0.1",
+                    "port": 8000,
+                    "default_environment_base_path": "./environments",
+                    "environments_file": "./environments.yaml",
+                },
+                "behavior": {
+                    "log_tail_lines": 100,
+                    "log_buffer_lines": 1000,
+                    "file_edit_lock_timeout_sec": 600,
+                },
+                "appearance": {
+                    "app_name": "OQTOPUS Manager",
+                    "environment_templates": ["backend"],
+                },
+                "auth": {
+                    "provider": "none",
+                    "none": {"default_account": "admin_user", "default_roles": ["admin"]},
+                },
+                "enable_debug_endpoint": False,
+                # permissions: section intentionally omitted
+            }
+        ),
+        encoding="utf-8",
+    )
+    cfg = AppConfig.load(config_path)
+    assert cfg.role_permissions is None

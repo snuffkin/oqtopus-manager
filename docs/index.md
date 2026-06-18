@@ -27,7 +27,8 @@ It allows operators to manage multiple OQTOPUS backend environments running on a
 
 - [Development Flow](./developer_guidelines/development_flow.md)
 - [Setup Development Environment](./developer_guidelines/setup.md)
-- [Permissions](./developer_guidelines/permissions.md)
+- [Access Control](./developer_guidelines/access_control.md)
+- [Permissions API](./developer_guidelines/permissions.md)
 - [How to Contribute](./CONTRIBUTING.md)
 - [Code of Conduct](https://github.com/oqtopus-team/.github/blob/main/CODE_OF_CONDUCT.md)
 - [Security](https://github.com/oqtopus-team/.github/blob/main/SECURITY.md)

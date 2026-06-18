@@ -2,23 +2,31 @@
 
 ## Overview
 
-OQTOPUS Manager uses **permission-based access control (PBAC)**. The core idea is:
+OQTOPUS Manager supports two access control approaches.
+The default setup uses **permission-based access control (PBAC)**, but the `permissions:` section
+in `config.yaml` is optional — applications can use **role-based access control (RBAC)** instead.
+
+| Approach | `permissions:` in config.yaml | Control granularity |
+|---|---|---|
+| Permission-based (default) | Required | Per operation (`"environment.get"`) |
+| Role-based | Not required | Per role (`"admin"`) |
+
+### Permission-based access control
 
 1. Each user holds one or more **roles** (e.g. `operator`, `admin`).
 2. Each role is mapped to a set of **permissions** (e.g. `environment.get`, `app_settings.update`).
-3. Each API endpoint and UI element declares which permission it requires.
+3. Each API endpoint declares which permission it requires.
 
 This two-level indirection (role → permission) decouples "who the user is" from "what they can do".
-Adding a new action only requires a new permission string — no role definition changes.
-
-### Why permissions instead of roles?
-
-A role-only model checks `if user.role == "admin"` directly in the code. This becomes fragile:
-adding a new role or redistributing capabilities requires touching every check site.
-
-With permissions, each check site declares a stable intent (`"environment.create"`) and the
-role-to-permission mapping in `config.yaml` determines who can perform it.
 Changing which roles have which permissions requires only a config change, not a code change.
+
+### Role-based access control
+
+When `permissions:` is omitted from `config.yaml`, each route checks role membership directly.
+This is simpler but less flexible: redistributing capabilities across roles requires code changes.
+
+For implementation details and a full comparison, see
+[Developer Guidelines — Access Control](../developer_guidelines/access_control.md).
 
 ## Design conventions
 
@@ -97,6 +105,8 @@ Two endpoints intentionally have no `require_permission()` dependency:
 
 ## Implementation
 
+### Permission-based
+
 Role-to-permission mappings are defined in `config.yaml` under the `permissions:` key
 (see [Configuration — permissions](configuration.md#permissions)).
 
@@ -105,8 +115,18 @@ The application reads this configuration at startup and uses the following compo
 - `auth/permissions.py` — provides `parse_role_permissions()` to parse the config and `Permissions` to check them
 - `auth/fastapi/depends.py` — provides `FastAPIPermissions` and `require_permission()` to enforce permissions on each route
 
-For details on how to use these classes, see
-[Developer Guidelines — Permissions](../developer_guidelines/permissions.md).
+### Role-based
 
-When authentication is disabled (`provider: none`), a virtual admin user is used so that
-all permissions are granted and the application behaves identically to a real admin session.
+When `permissions:` is omitted from `config.yaml`, `require_roles()` is used instead of
+`require_permission()` on each route. No mapping configuration is needed — roles come directly
+from the authenticated user.
+
+### Authentication disabled
+
+When authentication is disabled (`provider: none`), a virtual user is created with the roles
+defined in `default_roles`. If `permissions:` is configured, those roles are resolved against
+the mapping as usual.
+
+For full implementation guidance, see
+[Developer Guidelines — Access Control](../developer_guidelines/access_control.md) and
+[Developer Guidelines — Permissions API](../developer_guidelines/permissions.md).

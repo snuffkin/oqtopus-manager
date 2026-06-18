@@ -39,7 +39,7 @@ class AppConfig(BaseModel):
     sidebar_links: list[SidebarLink] = []
     auth: AuthConfig = AuthConfig()
     enable_debug_endpoint: bool
-    role_permissions: dict[str, frozenset[str]]
+    role_permissions: dict[str, frozenset[str]] | None = None
 
     @classmethod
     def load(cls, config_path: pathlib.Path) -> AppConfig:
@@ -89,7 +89,11 @@ class AppConfig(BaseModel):
                 SidebarLink(**item) for item in (appearance.get("sidebar_links") or [])
             ],
             auth=auth,
-            role_permissions=parse_role_permissions(raw["permissions"]),
+            role_permissions=(
+                parse_role_permissions(raw["permissions"])
+                if "permissions" in raw
+                else None
+            ),
         )
 
     def load_environments(self) -> list[Environment]:

@@ -13,6 +13,9 @@ if TYPE_CHECKING:
     from fastapi.params import Depends as DependsType
 
 
+# ── Authentication ────────────────────────────────────────────────────────────
+
+
 def get_current_user(request: Request) -> AuthUser | None:
     """Extract the authenticated user from request state (set by AuthMiddleware).
 
@@ -24,6 +27,84 @@ def get_current_user(request: Request) -> AuthUser | None:
 
 
 CurrentUser = Annotated[AuthUser | None, Depends(get_current_user)]
+
+
+# ── Role-based access control ─────────────────────────────────────────────────
+#
+# Requires no configuration — roles come from the auth middleware.
+# Use when ``permissions:`` is not needed and role membership is sufficient.
+
+
+class FastAPIRoles:
+    """FastAPI role checker that requires no configuration.
+
+    Roles are read directly from the authenticated user set by AuthMiddleware.
+    Use this when you need role-based access control without a permission mapping.
+
+    ``require()`` is a static method, so instantiation is not required.
+    Prefer the standalone :func:`require_roles` function for route decorators::
+
+        @router.get("/admin", dependencies=[require_roles("admin")])
+        async def admin_page(request: Request) -> HTMLResponse:
+            ...
+
+        # Multiple roles: pass if the user holds ANY of the specified roles
+        @router.get("/ops", dependencies=[require_roles("admin", "operator")])
+        async def ops_page(request: Request) -> HTMLResponse:
+            ...
+
+    ``FastAPIRoles`` is retained for cases where a class interface is preferred
+    for consistency with :class:`FastAPIPermissions`.
+
+    """
+
+    @staticmethod
+    def require(*roles: str) -> DependsType:
+        """Return a dependency that raises 403 if the user holds none of the roles.
+
+        Pass one or more role names.  Access is granted when the user holds
+        **at least one** of them (OR logic).
+
+        Returns:
+            A ``Depends`` instance suitable for ``dependencies=[...]``.
+
+        """
+
+        def check(user: CurrentUser) -> AuthUser | None:
+            if user is None or not any(role in user.roles for role in roles):
+                raise HTTPException(status_code=403, detail="Insufficient role")
+            return user
+
+        return Depends(check)
+
+
+def require_roles(*roles: str) -> DependsType:
+    """Return a FastAPI dependency that raises 403 if the user holds none of the roles.
+
+    Pass one or more role names.  Access is granted when the user holds
+    **at least one** of them (OR logic).
+
+    Reads roles directly from the authenticated user — no permission mapping
+    needed.  Use this when you want role-based access control without a
+    ``permissions:`` config section.
+
+    Returns:
+        A ``Depends`` instance that raises 403 if the check fails.
+
+    """
+
+    def check(user: CurrentUser) -> AuthUser | None:
+        if user is None or not any(role in user.roles for role in roles):
+            raise HTTPException(status_code=403, detail="Insufficient role")
+        return user
+
+    return Depends(check)
+
+
+# ── Permission-based access control ──────────────────────────────────────────
+#
+# Requires a ``permissions:`` section in config.yaml.
+# Maps roles to fine-grained permission strings (e.g. "environment.get").
 
 
 class FastAPIPermissions(Permissions):
@@ -61,6 +142,13 @@ class FastAPIPermissions(Permissions):
         return Depends(check)
 
 
+_PERMISSIONS_NOT_CONFIGURED = (
+    "require_permission() called but no permissions are configured. "
+    "Add a 'permissions:' section to config.yaml, "
+    "or use require_roles() for role-based access control."
+)
+
+
 def require_permission(permission: str) -> DependsType:
     """Return a FastAPI dependency that enforces the given permission.
 
@@ -74,12 +162,18 @@ def require_permission(permission: str) -> DependsType:
     ``FastAPIPermissions.require()`` instead.
 
     Returns:
-        A ``Depends`` instance that raises 403 if the check fails.
+        A ``Depends`` instance that raises 403 if the check fails, or 500
+        if no permissions are configured.
 
     """
 
     def check(request: Request, user: CurrentUser) -> AuthUser | None:
-        permissions: FastAPIPermissions = request.app.state.permissions
+        permissions: FastAPIPermissions | None = getattr(
+            request.app.state, "permissions", None
+        )
+        if permissions is None:
+            # Developer error: permissions: section missing from config.yaml
+            raise RuntimeError(_PERMISSIONS_NOT_CONFIGURED)
         if not permissions.has_permission(user, permission):
             raise HTTPException(status_code=403, detail="Insufficient permissions")
         return user

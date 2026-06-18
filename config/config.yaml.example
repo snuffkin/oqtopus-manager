@@ -60,7 +60,17 @@ auth:
     oqtopus-manager.operator: operator
     oqtopus-manager.admin: admin
 
-# Role-based permissions. _extends_ defines single-level inheritance (admin gets operator's permissions plus its own).
+# Permission-based access control (optional).
+#
+# When this section is present, routes enforce fine-grained permission strings
+# (e.g. "environment.get") and require_permission() is used in route handlers.
+#
+# When this section is omitted, the application falls back to role-based access
+# control: use require_role() in route handlers and routes check role membership
+# directly (e.g. "admin", "operator") without a permission mapping.
+#
+# _extends_ defines single-level inheritance: the child role inherits all
+# permissions of the parent role in addition to its own.
 permissions:
   _extends_:
     admin: operator

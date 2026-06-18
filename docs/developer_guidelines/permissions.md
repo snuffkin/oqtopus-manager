@@ -1,16 +1,20 @@
-# Permissions and FastAPIPermissions
+# Permissions API
 
-This page describes the `Permissions` and `FastAPIPermissions` classes
-provided by the `auth` package.
+This page is the API reference for the permission and role classes in the `auth` package.
+For design philosophy, mechanics, and implementation guidance, see
+[Access Control](access_control.md).
 
 ## Overview
 
-The permission system is split into two layers:
+The auth package provides two independent sets of classes and functions:
 
-| Class | Package | Responsibility |
-|---|---|---|
-| `Permissions` | `auth` (framework-agnostic) | Stores resolved role-to-permission mapping; provides `has_permission()` |
-| `FastAPIPermissions` | `auth.fastapi` (FastAPI-specific) | Inherits `Permissions`; adds `require()` for use as a FastAPI dependency |
+| Class / Function | Package | Approach | Requires `permissions:` config |
+|---|---|---|---|
+| `Permissions` | `auth` | Permission-based | Yes |
+| `FastAPIPermissions` | `auth.fastapi` | Permission-based | Yes |
+| `require_permission()` | `auth.fastapi` | Permission-based | Yes |
+| `FastAPIRoles` | `auth.fastapi` | Role-based | No |
+| `require_roles()` | `auth.fastapi` | Role-based | No |
 
 ## Permissions
 
@@ -79,6 +83,50 @@ from oqtopus_manager.auth.fastapi import require_permission
 
 @router.get("", dependencies=[require_permission("environment.get")])
 async def list_environments(request: Request) -> HTMLResponse:
+    ...
+```
+
+## FastAPIRoles
+
+Defined in `auth/fastapi/depends.py`. No configuration required — roles are read
+directly from the authenticated user.
+
+```python
+from oqtopus_manager.auth.fastapi import FastAPIRoles
+
+roles = FastAPIRoles()
+
+@router.get("/admin", dependencies=[roles.require("admin")])
+async def admin_page(request: Request) -> HTMLResponse:
+    ...
+
+# Multiple roles: pass if the user holds ANY of the specified roles (OR logic)
+@router.get("/ops", dependencies=[roles.require("admin", "operator")])
+async def ops_page(request: Request) -> HTMLResponse:
+    ...
+```
+
+### Method
+
+| Method | Description |
+|---|---|
+| `require(*roles)` | Returns a `Depends` instance that raises `403` if the user holds none of the roles. OR logic: access granted when the user holds **at least one** of the specified roles. |
+
+## require_roles()
+
+Standalone convenience function equivalent to `FastAPIRoles.require()`.
+Preferred for route decorators because it reads naturally.
+
+```python
+from oqtopus_manager.auth.fastapi import require_roles
+
+@router.get("/admin", dependencies=[require_roles("admin")])
+async def admin_page(request: Request) -> HTMLResponse:
+    ...
+
+# Multiple roles with OR logic
+@router.get("/ops", dependencies=[require_roles("admin", "operator")])
+async def ops_page(request: Request) -> HTMLResponse:
     ...
 ```
 
